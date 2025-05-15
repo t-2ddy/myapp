@@ -5,13 +5,14 @@ function App() {
 
   return (
     <>
-      <div>
-        <h1 className='flex text-center justify-center text-4xl '>
-          hello world, this is a test a very long test to see if the text will go off screen
-        </h1>
+      <div className='flex min-h-screen bg-zinc-900 justify-center'>
+        <div className='w-full max-w-sm'>
+          <h1 className='text-center text-4xl text-neutral-300'>
+            hello world, this is a test a very long test to see if the text will go off screen
+          </h1>
+        </div>
       </div>
     </>
   )
 }
-
 export default App
