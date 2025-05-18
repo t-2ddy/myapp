@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-import { IconName } from "react-icons/fa6";
+import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
 
 function App() {
@@ -20,8 +20,13 @@ function App() {
              dangerouslySetInnerHTML={{ __html: asciiArt }} 
              style={{ fontFamily: 'monospace', fontSize: '7px', lineHeight: '9px' }}
         />
-        <div className='flex-row px-6 tinos-regular'>
-
+        <div className='flex-col px-6 tinos-regular'>
+          <div className='flex flex-row justify-between'>
+            <PiDiscordLogo className='size-5'/>
+            <PiXLogo className='size-5'/>
+            <PiLinkedinLogo className='size-5'/>
+            <PiGithubLogo className='size-5'/>
+            </div>
           <h1 className='text-4xl pt-12'>
             welcome!
           </h1>
