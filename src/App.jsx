@@ -47,6 +47,25 @@ function App() {
     }
   ]
 
+  const courses = [
+    {
+      title:"CS-250: intro to software systems",
+      description:"a project based class that provided insite of how to build an app from scratch. less code more about the proces and taking everything into consideration when designing and building a product",
+    },
+    {
+      title:"CompE-260: data structures",
+      description:"help me with my understanding of how to apply algorithems and how they work internally. in short, this class helps me look at puzzle problems now with a better foundation of the application for data structures",
+    },
+    {
+      title:"CS-549: machine learning",
+      description:"i learned the process of building and testing my own machine learning models, stemming from the kdd cup 1999 third International Knowledge Discovery and Data Mining Tools Competition data set",
+    },
+    {
+      title:"CompE-270: digital systems",
+      description:"assembly based project class where i made a maze game. this was my first introduction to building anything outside of smaller scale assignments",
+    }
+  ]
+
   const root = useRef(null) //search for ani target
   const scope = useRef(null) //organize the animations...the "scope of the animaitons"
   
@@ -81,7 +100,7 @@ function App() {
   }, [])
 
   return (
-    <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center">
+    <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase">
       <div className="w-full max-w-md py-12 sm:max-w-xl">
         <div className="text-center text-[6px] leading-[6px] sm:text-[8px] sm:leading-[9px]" 
              dangerouslySetInnerHTML={{ __html: asciiArt }} 
@@ -111,7 +130,8 @@ function App() {
           
           <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
           
-          <h2 className='text-4xl pt-8 text-neutral-200'>
+          <h2 className='text-4xl py-6
+           text-neutral-200'>
             projects
           </h2>
           
@@ -128,8 +148,25 @@ function App() {
               </p>
             </div>
           ))}
-          
+
           <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+
+          <h2 className='text-4xl pt-8 text-neutral-200'>
+            relavant courses
+          </h2>
+          {courses.map((course, index) =>(
+            <div key={index}>
+              <h3 className='text-2xl pt-4 text-neutral-200'>
+                {course.title}
+              </h3>
+              <p className='text-lg pt-4 text-neutral-200'>
+                {course.description}
+              </p>
+            </div>
+          ))}
+
+          <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+
         </div>
       </div>
     </div>
