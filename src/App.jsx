@@ -93,7 +93,16 @@ function App() {
         ease: 'out(3)',
         scale: [0.8, 1],
         delay: stagger(150, {start: 325}),
+      }),
+
+      animate('.info-ani', {
+        translateY: [300, 0],
+        opacity: [0, 1],
+        duration: 800,
+        ease: 'out(3)',
+        delay: 300
       })
+
     })
 
     return () => scope.current.revert()
@@ -130,42 +139,45 @@ function App() {
           
           <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
           
-          <h2 className='text-4xl py-6
-           text-neutral-200'>
-            projects
-          </h2>
-          
-          {projects.map((project, index) => (
-            <div key={index}>
-              <h3 className='text-2xl pt-4 text-neutral-200'>
-                {project.title}
-              </h3>
-              <h4 className='text-md text-neutral-600 mt-2'>
-                {project.technologies}
-              </h4>
-              <p className='text-lg pt-4 text-neutral-200'>
-                {project.description}
-              </p>
+          <div className='info-ani'>
+
+            <h2 className='text-4xl py-6
+            text-neutral-200'>
+              projects
+            </h2>
+            
+            {projects.map((project, index) => (
+              <div key={index}>
+                <h3 className='text-2xl pt-4 text-neutral-200'>
+                  {project.title}
+                </h3>
+                <h4 className='text-md text-neutral-600 mt-2'>
+                  {project.technologies}
+                </h4>
+                <p className='text-lg pt-4 text-neutral-200'>
+                  {project.description}
+                </p>
+              </div>
+            ))}
+
+            <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+
+            <h2 className='text-4xl pt-8 text-neutral-200'>
+              relavant courses
+            </h2>
+            {courses.map((course, index) =>(
+              <div key={index}>
+                <h3 className='text-2xl pt-4 text-neutral-200'>
+                  {course.title}
+                </h3>
+                <p className='text-lg pt-4 text-neutral-200'>
+                  {course.description}
+                </p>
+              </div>
+            ))}
             </div>
-          ))}
 
-          <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
-
-          <h2 className='text-4xl pt-8 text-neutral-200'>
-            relavant courses
-          </h2>
-          {courses.map((course, index) =>(
-            <div key={index}>
-              <h3 className='text-2xl pt-4 text-neutral-200'>
-                {course.title}
-              </h3>
-              <p className='text-lg pt-4 text-neutral-200'>
-                {course.description}
-              </p>
-            </div>
-          ))}
-
-          <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+            <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
         </div>
       </div>
