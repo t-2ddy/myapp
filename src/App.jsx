@@ -79,6 +79,13 @@ function App() {
   useEffect(() => {
     scope.current = createScope({ root }).add(self => {
 
+      animate('.asciiFade-ani', {
+        opacity: [0, 1],
+        duration: 400,
+        ease: 'out(3)',
+        delay: 100
+      }),
+
       animate('.welcome-ani', {
         translateX: [-300, 0],
         opacity: [0, 1],
@@ -121,7 +128,7 @@ function App() {
   return (
     <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase">
       <div className="w-full max-w-md py-12 sm:max-w-xl">
-        <div className="text-center text-[5px] leading-[6px] sm:text-[8px] sm:leading-[9px]" 
+        <div className="text-center text-[5px] leading-[6px] sm:text-[8px] sm:leading-[9px] asciiFade-ani" 
              dangerouslySetInnerHTML={{ __html: asciiArt }} 
              style={{ fontFamily: 'monospace'}}
         />
