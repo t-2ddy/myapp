@@ -82,7 +82,7 @@ function App() {
       animate('.welcome-ani', {
         translateX: [-300, 0],
         opacity: [0, 1],
-        duration: 800,
+        duration: 500,
         ease: 'out(3)',
         delay: 300
       }),
@@ -90,17 +90,15 @@ function App() {
       animate('.header-ani', {
         translateX: [300, 0],
         opacity: [0, 1],
-        duration: 800,
+        duration: 500,
         ease: 'out(3)',
         delay: stagger(150, {start: 300}),
-        round: 1,
-        
       }),
 
       animate('.icon-ani', {
         translateX: [300, 0],
         opacity: [0, 1],
-        duration: 800,
+        duration: 500,
         ease: 'out(3)',
         scale: [0.8, 1],
         delay: stagger(150, {start: 325}),
