@@ -100,7 +100,8 @@ function App() {
         opacity: [0, 1],
         duration: 800,
         ease: 'out(3)',
-        delay: 300
+        delay: stagger(150, {start: 300}),
+
       })
 
     })
@@ -111,7 +112,7 @@ function App() {
   return (
     <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase">
       <div className="w-full max-w-md py-12 sm:max-w-xl">
-        <div className="text-center text-[6px] leading-[6px] sm:text-[8px] sm:leading-[9px]" 
+        <div className="text-center text-[5px] leading-[6px] sm:text-[8px] sm:leading-[9px]" 
              dangerouslySetInnerHTML={{ __html: asciiArt }} 
              style={{ fontFamily: 'monospace'}}
         />
@@ -119,7 +120,7 @@ function App() {
           <div className='flex flex-row justify-center gap-24 sm:gap-36 text-purple-300 mt-8 ease-in-out'>
             {socialIcons.map((social, index) => (
               <a key={index} href={social.href}>
-                <social.Icon className='icon-ani size-6 hover:text-violet-500 hover:scale-120'/>
+                <social.Icon className='icon-ani size-6 -mx-2 sm:mx-0 hover:text-violet-500 hover:scale-120'/>
               </a>
             ))}
           </div>
@@ -134,12 +135,11 @@ function App() {
           
           <p className='text-lg pt-4 text-neutral-200'>
             welcome to myapp! my name is theo leonard and this is my passion. i'm a junior 
-            at san diego state university and am currently enrolled under the computer science undergraduate program.
+            at san diego state university and i am currently enrolled under the computer science undergraduate program,
+            learning the engineering for front and backends as i go.
           </p>
           
           <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
-          
-          <div className='info-ani'>
 
             <h2 className='text-4xl py-6
             text-neutral-200'>
@@ -147,8 +147,8 @@ function App() {
             </h2>
             
             {projects.map((project, index) => (
-              <div key={index}>
-                <h3 className='text-2xl pt-4 text-neutral-200'>
+              <div key={index} className='info-ani'>
+                <h3 className='text-2xl pt-4 text-neutral-200 '>
                   {project.title}
                 </h3>
                 <h4 className='text-md text-neutral-600 mt-2'>
@@ -166,7 +166,7 @@ function App() {
               relavant courses
             </h2>
             {courses.map((course, index) =>(
-              <div key={index}>
+              <div key={index} className='info-ani'>
                 <h3 className='text-2xl pt-4 text-neutral-200'>
                   {course.title}
                 </h3>
@@ -179,10 +179,12 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-        </div>
       </div>
     </div>
   )
 }
 
 export default App
+
+//https://ow-app-ten.vercel.app/
+//https://t2ddy-portfolio.vercel.app/
