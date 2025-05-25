@@ -81,7 +81,7 @@ function App() {
 
       animate('.asciiFade-ani', {
         opacity: [0, 1],
-        duration: 700,
+        duration: 1000,
         ease: 'out(3)',
         delay: 300
       }),
