@@ -33,7 +33,8 @@ function App() {
   {
     title: "Overwatch Hero Guide Web Application",
     technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
-    description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend designing, and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws."
+    description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend designing, and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws.",
+    link:"https://ow-app-ten.vercel.app/"
   },
   {
     title: "Hololive-Themed Productivity Mobile Application",
@@ -148,8 +149,21 @@ function App() {
             
             {projects.map((project, index) => (
               <div key={index} className='info-ani'>
-                <h3 className='text-2xl pt-4 text-neutral-200 '>
-                  {project.title}
+                <h3 className='text-2xl py-3 text-purple-300'>
+                  {project.link ? (
+                    <a 
+                      href={project.link} 
+                      className='hover:text-violet-500 hover:cursor-pointer'
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {project.title}
+                    </a>
+                  ) : (
+                    <span className='hover:text-violet-500 hover:cursor-not-allowed'>
+                      {project.title}
+                    </span>
+                  )}
                 </h3>
                 <h4 className='text-md text-neutral-600 mt-2'>
                   {project.technologies}
@@ -162,15 +176,15 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-            <h2 className='text-4xl pt-8 text-neutral-200'>
+            <h2 className='text-4xl py-6 text-neutral-200'>
               relavant courses
             </h2>
             {courses.map((course, index) =>(
               <div key={index} className='info-ani'>
-                <h3 className='text-2xl pt-4 text-neutral-200'>
+                <h3 className='text-2xl py-2 text-purple-300'>
                   {course.title}
                 </h3>
-                <p className='text-lg pt-4 text-neutral-200'>
+                <p className='text-lg py-2 text-neutral-200'>
                   {course.description}
                 </p>
               </div>
