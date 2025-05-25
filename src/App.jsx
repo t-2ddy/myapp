@@ -33,13 +33,13 @@ function App() {
   {
     title: "Overwatch Hero Guide Web Application",
     technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
-    description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend designing, and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws.",
+    description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws.",
     link:"https://ow-app-ten.vercel.app/"
   },
   {
     title: "Hololive-Themed Productivity Mobile Application",
     technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
-    description: "-- wip -- i wanted to move on and try something new from just a web application, so i decided to try and make a mobile app. right now themed as the person in the ascii banner at the top of the page. for frontend im using react-native with expo, writting in typescript and nativewind for css. and for backend im using appwrite to handel my authentication and my database for user data as well as making my own api to have a character themed chat bot."
+    description: "-- wip -- i wanted to move on and try something new from just a web application, so i decided to try and make a mobile app. right now themed as the person in the ascii banner at the top of the page. for frontend im using react-native with expo, writting in typescript and nativewind for css. and for backend im using appwrite to handle my authentication and my database for user data as well as making my own api to have a character themed chat bot."
   },
   {
     title: "myapp - this site",
@@ -51,11 +51,11 @@ function App() {
   const courses = [
     {
       title:"CS-250: intro to software systems",
-      description:"a project based class that provided insite of how to build an app from scratch. less code more about the proces and taking everything into consideration when designing and building a product",
+      description:"a project based class that provided insite of how to engineer a project from scratch. less code more about the proces and taking everything into consideration when designing and building a product",
     },
     {
       title:"CompE-260: data structures",
-      description:"help me with my understanding of how to apply algorithems and how they work internally. in short, this class helps me look at puzzle problems now with a better foundation of the application for data structures",
+      description:"helped me with my understanding of how to apply algorithems and how they work internally. in short, this class helps me look at puzzle problems now with a better foundation of the application for data structures",
     },
     {
       title:"CS-549: machine learning",
@@ -85,6 +85,16 @@ function App() {
         duration: 800,
         ease: 'out(3)',
         delay: 300
+      }),
+
+      animate('.header-ani', {
+        translateX: [300, 0],
+        opacity: [0, 1],
+        duration: 800,
+        ease: 'out(3)',
+        delay: stagger(150, {start: 300}),
+        round: 1,
+        
       }),
 
       animate('.icon-ani', {
@@ -121,7 +131,7 @@ function App() {
           <div className='flex flex-row justify-center gap-24 sm:gap-36 text-purple-300 mt-8 ease-in-out'>
             {socialIcons.map((social, index) => (
               <a key={index} href={social.href}>
-                <social.Icon className='icon-ani size-6 -mx-2 sm:mx-0 hover:text-violet-500 hover:scale-120'/>
+                <social.Icon className='icon-ani size-6 -mx-2 sm:mx-0 hover:text-violet-500 hover:scale-120 hover:duration-75'/>
               </a>
             ))}
           </div>
@@ -130,11 +140,11 @@ function App() {
             welcome!
           </h1>
           
-          <h2 className='text-4xl pt-8 text-neutral-200'>
+          <h2 className='text-4xl pt-8 text-neutral-200 header-ani'>
             about me
           </h2>
           
-          <p className='text-lg pt-4 text-neutral-200'>
+          <p className='text-lg pt-4 text-neutral-200 info-ani'>
             welcome to myapp! my name is theo leonard and this is my passion. i'm a junior 
             at san diego state university and i am currently enrolled under the computer science undergraduate program,
             learning the engineering for front and backends as i go.
@@ -143,7 +153,7 @@ function App() {
           <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
             <h2 className='text-4xl py-6
-            text-neutral-200'>
+            text-neutral-200 header-ani'>
               projects
             </h2>
             
@@ -153,14 +163,14 @@ function App() {
                   {project.link ? (
                     <a 
                       href={project.link} 
-                      className='hover:text-violet-500 hover:cursor-pointer'
+                      className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       {project.title}
                     </a>
                   ) : (
-                    <span className='hover:text-violet-500 hover:cursor-not-allowed'>
+                    <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block'>
                       {project.title}
                     </span>
                   )}
@@ -176,7 +186,7 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-            <h2 className='text-4xl py-6 text-neutral-200'>
+            <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
               relavant courses
             </h2>
             {courses.map((course, index) =>(
@@ -199,6 +209,3 @@ function App() {
 }
 
 export default App
-
-//https://ow-app-ten.vercel.app/
-//https://t2ddy-portfolio.vercel.app/
