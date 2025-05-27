@@ -40,14 +40,14 @@ const Navbar = () => {
   }, [])
   
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-900/95 backdrop-blur-sm border-b border-violet-950/50">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-900/95 backdrop-blur-sm border-b border-violet-950/50 tinos-regular">
       <div className="max-w-4xl mx-auto px-6 py-4">
         <ul className="flex justify-center space-x-8 sm:space-x-12">
           {navItems.map((item) => (
             <li key={item.id}>
               <button
                 onClick={() => scrollToSection(item.id)}
-                className="text-sm sm:text-base font-medium transition-all duration-200 hover:text-violet-400 hover:scale-105 text-violet-200"
+                className="text-sm sm:text-base font-medium transition-all duration-200 hover:text-violet-400 hover:scale-105 text-violet-200 hover:cursor-pointer"
               >
                 {item.label}
               </button>

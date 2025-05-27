@@ -148,8 +148,8 @@ function App() {
               welcome!
             </h1>
             
-            <div id="about" className="pt-16">
-              <h2 className='text-4xl text-neutral-200 header-ani'>
+            <div id="about" className="pt-4">
+              <h2 className='text-4xl text-neutral-200 header-ani py-2'>
                 about me
               </h2>
               
@@ -162,7 +162,7 @@ function App() {
             
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-            <div id="projects" className="pt-16">
+            <div id="projects" className="pt-4">
               <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
                 projects
               </h2>
@@ -197,7 +197,7 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-            <div id="courses" className="pt-16">
+            <div id="courses" className="pt-4">
               <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
                 relevant courses
               </h2>
