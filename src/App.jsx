@@ -156,7 +156,7 @@ function App() {
               <p className='text-lg pt-4 text-neutral-200 info-ani'>
                 welcome to myapp! my name is theo leonard and this is my passion. i'm a junior 
                 at san diego state university and i am currently enrolled under the computer science undergraduate program,
-                learning the engineering for front and backends as i go.
+                developing my skills in full-stack development through hands-on projects.
               </p>
             </div>
             
