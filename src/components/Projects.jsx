@@ -87,55 +87,32 @@ const Projects = () => {
     setCurrentImageIndex(index);
   };
 
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (!galleryOpen) return;
-      
-      if (e.key === 'Escape') {
-        closeGallery();
-      } else if (e.key === 'ArrowLeft') {
-        prevImage();
-      } else if (e.key === 'ArrowRight') {
-        nextImage();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [galleryOpen]);
-
-  const projects = [
-    {
-      title: "Overwatch Hero Guide Web Application",
-      technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
-      description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws.",
-      link: "https://ow-app-ten.vercel.app/",
-      images: [
-        owHome,
-        owHeros,
-        owWelcome,
-      ]
-    },
-    {
-      title: "Hololive-Themed Productivity Mobile Application",
-      technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
-      description: "-- wip -- i wanted to move on and try something new from just a web application, so i decided to try and make a mobile app. right now themed as the person in the ascii banner at the top of the page. for frontend im using react-native with expo, writting in typescript and nativewind for css. and for backend im using appwrite to handle my authentication and my database for user data as well as making my own api to have a character themed chat bot.",
-      images: [
-        hhAuth1,
-        hhAuth2,
-        hhAuth3,
-        hhHome,
-        hhTowa,
-        hhMessages,
-      ]
-    },
-    {
-      title: "myapp - this site",
-      technologies: "React, Vite, JavaScript, Tailwind CSS, Anime.js",
-      description: "-- wip -- personal web-app / portfolio / blog / idk"
-    }
-  ];
+const projects = [
+  {
+    title: "Overwatch Hero Guide Web Application",
+    technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
+    description: "• My first full-stack web app\n• Built with React/Vite and Tailwind for the frontend\n• Pulls data from Overfast API\n• Uses a custom MySQL database hosted on AWS for hero tips\n• learned about technologies that i still use in my tech stack",
+    link: "https://ow-app-ten.vercel.app/",
+    images: [
+      owHome,
+      owHeros,
+      owWelcome,
+    ]
+  },
+  {
+    title: "Hololive-Themed Productivity Mobile Application",
+    technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
+    description: "• My jump into mobile development - a productivity app themed around the character in my ASCII banner\n• Built with React Native/Expo and TypeScript\n• Uses Appwrite for auth and user data\n• Features a custom API for the themed chatbot",
+    images: [
+      hhAuth1,
+      hhAuth2,
+      hhAuth3,
+      hhHome,
+      hhTowa,
+      hhMessages,
+    ]
+  },
+];
 
   return (
     <div id="projects" className="pt-4">
@@ -161,7 +138,7 @@ const Projects = () => {
               </span>
             )}
           </h3>
-          <h4 className='text-md text-neutral-600 mt-2'>
+          <h4 className='text-lg text-neutral-600'>
             {project.technologies}
           </h4>
           
@@ -174,8 +151,8 @@ const Projects = () => {
                 transform: `translateX(0px)`
               }}
             >
-              <div className="flex-shrink-0 w-[345px] sm:w-[520px] py-6 shadow-lg">
-                <p className="text-lg text-neutral-200 leading-relaxed">
+              <div className="flex-shrink-0 w-[345px] sm:w-[520px] py-6">
+                <p className="text-xl text-neutral-200 leading-relaxed whitespace-pre-line">
                   {project.description}
                 </p>
               </div>
@@ -190,7 +167,7 @@ const Projects = () => {
                   <img
                     src={src}
                     alt={`${project.title} screenshot ${i + 1}`}
-                    className="w-80 h-52 object-cover object-top select-none rounded-lg pointer-events-none justify-center mt-6"
+                    className="w-80 h-44 object-cover object-top select-none rounded-lg pointer-events-none justify-center mt-6"
                     draggable={false}
                   />
                   </div>
@@ -201,67 +178,66 @@ const Projects = () => {
         </div>
       ))}
 
-      {galleryOpen && currentProject && (
-        <div className="fixed inset-0 bg-zinc-900 bg-opacity-90 flex items-center justify-center z-50">
-          <div className="relative max-w-6xl max-h-full w-full h-full flex items-center justify-center p-4">
-
+    {galleryOpen && currentProject && (
+      <div className="fixed inset-0 bg-zinc-900 bg-opacity-90 flex items-center justify-center z-50">
+        <div className="sm:max-w-5xl max-w-sm flex items-center justify-center px-10 p-10 sm:px-20">
+          <button
+            onClick={closeGallery}
+            className="absolute top-4 right-4 text-white text-5xl hover:text-violet-400 hover:scale-125 ease-in duration-200 transition-transform z-10 bg-zinc-900 rounded-full size-20 flex items-center justify-center"
+          >
+            ×
+          </button>
+          {currentProject.images && currentProject.images.length > 1 && (
             <button
-              onClick={closeGallery}
-              className="absolute top-4 right-4 text-white text-4xl hover:text-violet-400 transition-colors z-10 bg-zinc-900 bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
+              onClick={prevImage}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-5xl hover:text-purple-400 hover:scale-125 ease-in duration-200 transition-transform z-10  bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
             >
-              ×
+              ‹
             </button>
-
-            {currentProject.images && currentProject.images.length > 1 && (
-              <button
-                onClick={prevImage}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-violet-600 text-4xl hover:text-purple-400 transition-colors z-10  bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
-              >
-                ‹
-              </button>
-            )}
-
-            {currentProject.images && currentProject.images.length > 1 && (
-              <button
-                onClick={nextImage}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-violet-600 text-4xl hover:text-purple-400 transition-colors z-10 rounded-full w-12 h-12 flex items-center justify-center"
-              >
-                ›
-              </button>
-            )}
-
-            <div className="flex flex-col items-center justify-center max-w-full max-h-full">
-              <img
-                src={currentProject.images[currentImageIndex]}
-                alt={`${currentProject.title} screenshot ${currentImageIndex + 1}`}
-                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
-              />
-            </div>
-
-            {currentProject.images && currentProject.images.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-zinc-900 bg-opacity-50 rounded-lg p-2">
-                {currentProject.images.map((src, i) => (
-                  <button
-                    key={i}
-                    onClick={() => goToImage(i)}
-                    className={`w-16 h-10 rounded overflow-hidden border-2 transition-all ${
-                      i === currentImageIndex 
-                        ? 'border-purple-400 scale-110' 
-                        : 'border-neutral-600 hover:border-purple-300'
-                    }`}
-                  >
-                    <img
-                      src={src}
-                      alt={`Thumbnail ${i + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
+          )}
+          {currentProject.images && currentProject.images.length > 1 && (
+            <button
+              onClick={nextImage}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-5xl hover:text-purple-400 hover:scale-125 ease-in duration-200 transition-transform z-10 rounded-full w-12 h-12 flex items-center justify-center"
+            >
+              ›
+            </button>
+          )}
+          <div className="flex flex-col items-center justify-center">
+            <img
+              src={currentProject.images[currentImageIndex]}
+              alt={`${currentProject.title} screenshot ${currentImageIndex + 1}`}
+              className={`object-contain rounded-xl ${
+                currentProject.title.includes("Hololive") 
+                  ? "max-w-2sm sm:max-w-md max-h-[70vh]" 
+                  : "max-w-full max-h-[80vh]"
+              }`}
+            />
           </div>
+          {currentProject.images && currentProject.images.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-zinc-900 bg-opacity-50 rounded-lg p-2">
+              {currentProject.images.map((src, i) => (
+                <button
+                  key={i}
+                  onClick={() => goToImage(i)}
+                  className={`w-16 h-10 rounded overflow-hidden border-2 transition-all ${
+                    i === currentImageIndex
+                      ? 'border-purple-400 scale-110'
+                      : 'border-neutral-600 hover:border-purple-300'
+                  }`}
+                >
+                  <img
+                    src={src}
+                    alt={`Thumbnail ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
+    )}
     </div>
   )
 }

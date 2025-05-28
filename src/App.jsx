@@ -33,20 +33,20 @@ function App() {
 
   const courses = [
     {
-      title:"CS-250: intro to software systems",
-      description:"a project based class that provided insite on how to engineer a project from scratch. less code more about the proces and taking everything into consideration when designing and building a product",
+      title: "CS-250: intro to software systems",
+      description: "• A project-based class that provided insight on how to engineer a project from scratch\n• Less code, more about the process and taking everything into consideration\n• Focused on designing and building products systematically",
     },
     {
-      title:"CompE-260: data structures",
-      description:"helped me with my understanding of how to apply algorithems and how they work internally. in short, this class helps me look at puzzle problems now with a better foundation of the application for data structures",
+      title: "CompE-260: data structures",
+      description: "• Helped me understand how to apply algorithms and how they work internally\n• Built a better foundation for solving puzzle problems\n• Learned practical applications for different data structures",
     },
     {
-      title:"CS-549: machine learning",
-      description:"i learned the process of building and testing my own machine learning models, stemming from the kdd cup 1999 third International Knowledge Discovery and Data Mining Tools Competition data set",
+      title: "CS-549: machine learning",
+      description: "• Learned the process of building and testing my own ML models\n• Worked with the KDD Cup 1999 dataset from the International Knowledge Discovery competition\n• Gained hands-on experience with machine learning workflows",
     },
     {
-      title:"CompE-270: digital systems",
-      description:"assembly based project class where i made a maze game. this was my first introduction to building anything outside of smaller scale assignments",
+      title: "CompE-270: digital systems",
+      description: "• Assembly-based project class where I made a maze game\n• My first introduction to building anything outside of smaller assignments\n• Learned low-level programming and digital system design",
     }
   ]
 
@@ -66,15 +66,15 @@ function App() {
         opacity: [0, 1],
         duration: 1000,
         ease: 'out(3)',
-        delay: 300
+        delay: 450
       }),
 
       animate('.welcome-ani', {
         translateX: [-300, 0],
         opacity: [0, 1],
-        duration: 500,
+        duration: 700,
         ease: 'out(3)',
-        delay: 300
+        delay: 450
       }),
 
       animate('.header-ani', {
@@ -82,24 +82,24 @@ function App() {
         opacity: [0, 1],
         duration: 500,
         ease: 'out(3)',
-        delay: stagger(150, {start: 300}),
+        delay: stagger(150, {start: 500}),
       }),
 
       animate('.icon-ani', {
         translateX: [300, 0],
         opacity: [0, 1],
-        duration: 500,
+        duration: 800,
         ease: 'out(3)',
         scale: [0.8, 1],
-        delay: stagger(150, {start: 325}),
+        delay: stagger(150, {start: 500}),
       }),
 
       animate('.info-ani', {
         translateY: [300, 0],
         opacity: [0, 1],
-        duration: 800,
+        duration: 850,
         ease: 'out(3)',
-        delay: stagger(150, {start: 300}),
+        delay: stagger(150, {start: 550}),
 
       })
 
@@ -135,7 +135,7 @@ function App() {
                 about me
               </h2>
               
-              <p className='text-lg pt-4 text-neutral-200 info-ani'>
+              <p className='text-xl pt-4 text-neutral-200 info-ani'>
                 welcome to myapp! my name is theo leonard and this is my passion. i'm a junior 
                 at san diego state university and i am currently enrolled under the computer science undergraduate program,
                 developing my skills in full-stack development through hands-on projects.
@@ -161,7 +161,7 @@ function App() {
                   <h3 className='text-2xl py-2 text-purple-300'>
                     {course.title}
                   </h3>
-                  <p className='text-lg py-2 text-neutral-200'>
+                  <p className='text-xl py-2 text-neutral-200 whitespace-pre-line'>
                     {course.description}
                   </p>
                 </div>
