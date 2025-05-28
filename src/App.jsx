@@ -121,7 +121,7 @@ function App() {
             <div className='flex flex-row justify-center gap-24 sm:gap-36 text-purple-300 mt-8 ease-in-out'>
               {socialIcons.map((social, index) => (
                 <a key={index} href={social.href}>
-                  <social.Icon className='icon-ani size-6 -mx-2 sm:mx-0 hover:text-violet-500 hover:scale-120 hover:duration-75'/>
+                  <social.Icon target="_blank" className='icon-ani size-6 -mx-2 sm:mx-0 hover:text-violet-500 hover:scale-120 hover:duration-75'/>
                 </a>
               ))}
             </div>

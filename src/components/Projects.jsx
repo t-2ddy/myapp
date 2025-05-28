@@ -1,4 +1,4 @@
-import { createDraggable, utils } from "animejs"
+import { createDraggable, utils, onScroll, animate } from "animejs"
 import { useEffect, useRef, useState } from 'react'
 
 import owHeros    from '/images/ow_heros.png'
@@ -16,12 +16,11 @@ const Projects = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [imagesClickable, setImagesClickable] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setImagesClickable(true);
-    }, 1500);
+    }, 500);
 
     projectScrollRefs.current.forEach((ref, index) => {
       if (ref) {
@@ -41,10 +40,12 @@ const Projects = () => {
           y: false,
           modifier: utils.clamp(minScroll, 0),
           onRelease: () => {
-            createDraggable(ref, {
-              y: false,
-              modifier: utils.clamp(minScroll, 0),
-            });
+            setTimeout(() => {
+              createDraggable(ref, {
+                y: false,
+                modifier: utils.clamp(minScroll, 0),
+              });
+            }, 50);
           }
         });
       }
@@ -115,7 +116,7 @@ const projects = [
 ];
 
   return (
-    <div id="projects" className="pt-4">
+    <div>
       <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
         projects
       </h2>
@@ -209,7 +210,7 @@ const projects = [
               alt={`${currentProject.title} screenshot ${currentImageIndex + 1}`}
               className={`object-contain rounded-xl ${
                 currentProject.title.includes("Hololive") 
-                  ? "max-w-2sm sm:max-w-md max-h-[70vh]" 
+                  ? "max-w-xs sm:max-w-md max-h-[70vh]" 
                   : "max-w-full max-h-[80vh]"
               }`}
             />
