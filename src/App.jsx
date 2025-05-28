@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import { animate, createScope, stagger } from 'animejs'
 import Navbar from './components/Navbar'
+import Projects from './components/Projects'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
@@ -27,25 +28,6 @@ function App() {
       href: 'https://github.com/t-2ddy',
       Icon: PiGithubLogo,
       name: 'GitHub'
-    }
-  ]
-
-  const projects = [
-  {
-    title: "Overwatch Hero Guide Web Application",
-    technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
-    description: "this was my first atempt at a full stack web application and i picked up a lot of tools i still currently use in my choice of a tech stack. for frontend: i used react with vite, wrote in javascript and tailwindcss for the frontend and made api calls from overfast-api. for backend: i made my own database in sql for specific hero tips and hosted it with aws.",
-    link:"https://ow-app-ten.vercel.app/"
-  },
-  {
-    title: "Hololive-Themed Productivity Mobile Application",
-    technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
-    description: "-- wip -- i wanted to move on and try something new from just a web application, so i decided to try and make a mobile app. right now themed as the person in the ascii banner at the top of the page. for frontend im using react-native with expo, writting in typescript and nativewind for css. and for backend im using appwrite to handle my authentication and my database for user data as well as making my own api to have a character themed chat bot."
-  },
-  {
-    title: "myapp - this site",
-    technologies: "React, Vite, JavaScript, Tailwind CSS, Anime.js",
-    description: "-- wip -- personal web-app / portfolio / blog / idk"
     }
   ]
 
@@ -163,36 +145,9 @@ function App() {
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
             <div id="projects" className="pt-4">
-              <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
-                projects
-              </h2>
-              
-              {projects.map((project, index) => (
-                <div key={index} className='info-ani'>
-                  <h3 className='text-2xl py-3 text-purple-300'>
-                    {project.link ? (
-                      <a 
-                        href={project.link} 
-                        className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {project.title}
-                      </a>
-                    ) : (
-                      <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block'>
-                        {project.title}
-                      </span>
-                    )}
-                  </h3>
-                  <h4 className='text-md text-neutral-600 mt-2'>
-                    {project.technologies}
-                  </h4>
-                  <p className='text-lg pt-4 text-neutral-200'>
-                    {project.description}
-                  </p>
-                </div>
-              ))}
+
+            <Projects/>
+
             </div>
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
