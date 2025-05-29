@@ -16,6 +16,7 @@ const Projects = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImage, setImagesClickable] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -45,7 +46,7 @@ const Projects = () => {
                 y: false,
                 modifier: utils.clamp(minScroll, 0),
               });
-            }, 50);
+            }, 30);
           }
         });
       }
@@ -153,7 +154,8 @@ const projects = [
               }}
             >
               <div className="flex-shrink-0 w-[345px] sm:w-[520px] py-6">
-                <p className="text-xl text-neutral-200 leading-relaxed whitespace-pre-line">
+                <p className="
+                text-xl text-neutral-200 leading-relaxed whitespace-pre-line">
                   {project.description}
                 </p>
               </div>
@@ -161,7 +163,8 @@ const projects = [
               {project.images?.map((src, i) => (
                 <div
                   key={i}
-                  className="flex-shrink-0 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105"
+                  className="
+                  flex-shrink-0 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105"
                   onClick={() => openGallery(project, i)}
                 >
                   <div className="flex rounded-2xl">
