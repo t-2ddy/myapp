@@ -43,12 +43,16 @@ const Projects = () => {
         createDraggable(ref, {
           y: false,
           modifier: utils.clamp(minScroll, 0),
-          onRelease: () => {
+          onRelease: (draggable) => {
             setTimeout(() => {
-              createDraggable(ref, {
-                y: false,
-                modifier: utils.clamp(minScroll, 0),
-              });
+              // Only recreate if not currently being grabbed
+              if (!draggable.grabbed && !draggable.dragged) {
+                draggable.kill();
+                createDraggable(ref, {
+                  y: false,
+                  modifier: utils.clamp(minScroll, 0),
+                });
+              }
             }, 30);
           }
         });
