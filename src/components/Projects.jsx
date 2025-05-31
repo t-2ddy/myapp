@@ -1,4 +1,4 @@
-import { createDraggable, utils, onScroll, animate } from "animejs"
+import { createDraggable, utils, animate } from "animejs"
 import { useEffect, useRef, useState } from 'react'
 
 import owHeros    from '/images/ow_heros.png'
@@ -17,6 +17,9 @@ const Projects = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentImage, setImagesClickable] = useState(null);
+
+  const [hoveredProjects, setHoveredProjects] = useState(new Set());
+  const [animatedProjects, setAnimatedProjects] = useState(new Set());
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -54,6 +57,43 @@ const Projects = () => {
 
     return () => clearTimeout(timer);
   }, []);
+
+  const handleMouseEnter = (index) => {
+    setHoveredProjects(prev => new Set(prev).add(index));
+    
+    if (!animatedProjects.has(index)) {
+      const projectElement = projectScrollRefs.current[index];
+      if (projectElement) {
+        const currentTransform = projectElement.style.transform || '';
+        const currentX = currentTransform.match(/translateX\(([^)]+)\)/);
+        const xValue = currentX ? parseFloat(currentX[1]) : 0;
+        
+        if (Math.abs(xValue) < 5) {
+          animate(projectElement, {
+            x: [0, -100, 0],
+            ease: 'inOutQuad',
+            duration: 700,
+          });
+          
+          setAnimatedProjects(prev => new Set(prev).add(index));
+        }
+      }
+    }
+  };
+
+  const handleMouseLeave = (index) => {
+    setHoveredProjects(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(index);
+      return newSet;
+    });
+    
+    setAnimatedProjects(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(index);
+      return newSet;
+    });
+  };
 
   const openGallery = (project, imageIndex) => {
     setCurrentProject(project);
@@ -144,7 +184,11 @@ const projects = [
             {project.technologies}
           </h4>
           
-          <div className="relative w-full overflow-hidden">
+          <div 
+            className="relative w-full overflow-hidden"
+            onMouseEnter={() => handleMouseEnter(index)}
+            onMouseLeave={() => handleMouseLeave(index)}
+          >
             <div 
               ref={(el) => projectScrollRefs.current[index] = el}
               className="flex space-x-6 cursor-grab select-none"
