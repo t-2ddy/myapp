@@ -72,6 +72,7 @@ const Projects = () => {
           animate(projectElement, {
             x: [0, -100, 0],
             ease: 'inOutQuad',
+            delay: 100,
             duration: 700,
           });
           
