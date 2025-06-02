@@ -163,10 +163,15 @@ const projects = [
 
   return (
     <div>
-      <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
-        projects
-      </h2>
-     
+      <div className="flex flex-row  py-6 text-neutral-200 header-ani whitespace-normal">
+        <h2 className='text-4xl'>
+          projects
+          
+        </h2>
+        <h2 className="text-md justify-center whitespace-normal ml-0.5 mt-2.5 sm:text-transparent text-violet-200 text-left">
+          -- drag points to preview projects
+        </h2>
+      </div>
       {projects.map((project, index) => (
         <div key={index} className='info-ani'>
           <h3 className='text-2xl py-3 text-purple-300'>
