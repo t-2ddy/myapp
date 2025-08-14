@@ -5,7 +5,7 @@ import Navbar from './components/Navbar'
 import Projects from './components/Projects'
 import MySpotifyPlayer from './components/MySpotifyPlayer'
 import SpotifyAdminSetup from './components/SpotifyAdminSetup'
-import { adminTokenStorage } from './utils/spotify'
+import { adminTokenStorage, getBackendAuthStatus } from './utils/spotify'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
@@ -16,19 +16,23 @@ function App() {
 
   // Check admin setup on mount and when URL changes
   useEffect(() => {
-    const checkAdminSetup = () => {
+    const checkAdminSetup = async () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const hasCallback = urlParams.get('code') || urlParams.get('error');
-        const isAuthenticated = adminTokenStorage.isAuthenticated();
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
         // Skip setup popup on localhost/development
         if (isLocalhost) {
           return;
         }
+
+        // Check if backend has authentication
+        const backendStatus = await getBackendAuthStatus();
+        const localAuth = adminTokenStorage.isAuthenticated();
         
-        if (hasCallback || !isAuthenticated) {
+        // Show setup if we have a callback OR if neither backend nor local storage has auth
+        if (hasCallback || (!backendStatus.authenticated && !localAuth)) {
           setShowAdminSetup(true);
         }
       } catch (error) {
@@ -50,6 +54,7 @@ function App() {
     const handleKeyPress = (e) => {
       // Press Ctrl+Shift+S to show admin setup
       if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        console.log('Admin setup triggered manually');
         setShowAdminSetup(true);
       }
     };
