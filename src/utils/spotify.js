@@ -1,13 +1,11 @@
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
 
-// Always use production URL for OAuth redirect to avoid localhost security issues
 const REDIRECT_URI = 'https://t2ddy-personal.vercel.app';
 
-// API Base URL - adjust for your deployment
 const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3001' 
-  : 'https://t2ddy-personal.vercel.app';
+  ? 'http://localhost:3001/api' 
+  : 'https://t2ddy-personal.vercel.app/api';
 
 // Spotify Web API endpoints
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
@@ -176,54 +174,76 @@ export async function getValidAccessToken() {
 
 // NEW BACKEND API FUNCTIONS
 
-// Store tokens in backend (after OAuth)
 export async function storeTokensInBackend(tokenData) {
-  const response = await fetch(`${API_BASE_URL}/api/spotify/tokens`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(tokenData)
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/spotify/tokens`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_in: tokenData.expires_in
+      })
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to store tokens in backend');
+    if (!response.ok) {
+      console.error('Backend token storage failed:', response.status);
+      return { success: false };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to store tokens in backend:', error);
+    return { success: false };
   }
-
-  return await response.json();
 }
 
-// Get current track from backend (public endpoint)
 export async function getCurrentTrackFromBackend() {
-  const response = await fetch(`${API_BASE_URL}/api/spotify/current-track`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/spotify/current-track`);
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch track from backend');
+    if (!response.ok) {
+      console.error('Failed to fetch track:', response.status);
+      return { success: false, data: null };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch track from backend:', error);
+    return { success: false, data: null };
   }
-
-  return await response.json();
 }
 
-// Check authentication status from backend
 export async function getBackendAuthStatus() {
-  const response = await fetch(`${API_BASE_URL}/api/spotify/status`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/spotify/status`);
 
-  if (!response.ok) {
-    throw new Error('Failed to check backend auth status');
+    if (!response.ok) {
+      return { authenticated: false, hasTrackData: false };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to check backend auth status:', error);
+    return { authenticated: false, hasTrackData: false };
   }
-
-  return await response.json();
 }
 
-// Refresh track data in backend
 export async function refreshBackendTrackData() {
-  const response = await fetch(`${API_BASE_URL}/api/spotify/refresh`, {
-    method: 'POST'
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/spotify/refresh`, {
+      method: 'POST'
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to refresh backend track data');
+    if (!response.ok) {
+      return { success: false };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to refresh backend track data:', error);
+    return { success: false };
   }
-
-  return await response.json();
 }

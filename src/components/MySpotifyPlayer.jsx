@@ -29,8 +29,8 @@ const MySpotifyPlayer = () => {
         setIsPlaying(false);
       }
     } catch (err) {
-      console.error('Error fetching track data (this is expected in local development):', err);
-      // Fail silently in development - just show no track data
+      console.error('Error fetching track data:', err);
+      // Fail silently - just show no track data
       setCurrentTrack(null);
       setIsPlaying(false);
       setError(null); // Don't show error message

@@ -1,21 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-const { fetch } = require('undici'); // Use undici for fetch in Node.js
-const app = express();
+const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
+const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
+const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
+const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-// Enable CORS for your frontend domains
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000', 
-    'https://t2ddy-personal.vercel.app'
-  ],
-  credentials: true
-}));
-
-app.use(express.json());
-
-// In-memory storage (in production, you'd use a database)
 let spotifyTokens = {
   access_token: null,
   refresh_token: null,
@@ -28,14 +16,6 @@ let currentTrackData = {
   lastUpdated: null
 };
 
-// Spotify configuration
-const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
-const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
-const TOKEN_URL = 'https://accounts.spotify.com/api/token';
-const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
-const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
-
-// Refresh access token
 async function refreshAccessToken() {
   if (!spotifyTokens.refresh_token) {
     throw new Error('No refresh token available');
@@ -67,13 +47,11 @@ async function refreshAccessToken() {
   return tokenData.access_token;
 }
 
-// Get valid access token
 async function getValidAccessToken() {
   if (!spotifyTokens.access_token) {
     throw new Error('No access token available');
   }
 
-  // Check if token needs refresh (with 1 minute buffer)
   if (spotifyTokens.expires_at && Date.now() >= (spotifyTokens.expires_at - 60000)) {
     return await refreshAccessToken();
   }
@@ -81,12 +59,10 @@ async function getValidAccessToken() {
   return spotifyTokens.access_token;
 }
 
-// Fetch current track data from Spotify
 async function fetchSpotifyData() {
   try {
     const accessToken = await getValidAccessToken();
 
-    // Try to get currently playing track
     const currentResponse = await fetch(CURRENTLY_PLAYING_URL, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
@@ -103,7 +79,6 @@ async function fetchSpotifyData() {
       }
     }
 
-    // Get most recent track if nothing is currently playing
     const recentResponse = await fetch(RECENTLY_PLAYED_URL, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
@@ -123,70 +98,88 @@ async function fetchSpotifyData() {
   }
 }
 
-// API Routes
-
-// Store tokens (called after OAuth)
-app.post('/api/spotify/tokens', (req, res) => {
-  const { access_token, refresh_token, expires_in } = req.body;
+function setCorsHeaders(res) {
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://t2ddy-personal.vercel.app'
+  ];
   
-  spotifyTokens = {
-    access_token,
-    refresh_token,
-    expires_at: Date.now() + (expires_in * 1000)
-  };
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', 'https://t2ddy-personal.vercel.app');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+}
 
-  // Immediately fetch current track data
-  fetchSpotifyData();
+export default async function handler(req, res) {
+  setCorsHeaders(res);
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
-  res.json({ success: true });
-});
+  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+  const path = pathname.replace('/api', '');
 
-// Get current track (public endpoint)
-app.get('/api/spotify/current-track', (req, res) => {
-  // Return cached track data
-  res.json({
-    success: true,
-    data: currentTrackData.track ? {
-      track: currentTrackData.track,
-      isPlaying: currentTrackData.isPlaying,
-      lastUpdated: currentTrackData.lastUpdated
-    } : null
-  });
-});
-
-// Check if authenticated
-app.get('/api/spotify/status', (req, res) => {
-  res.json({
-    authenticated: !!spotifyTokens.access_token,
-    hasTrackData: !!currentTrackData.track
-  });
-});
-
-// Refresh track data manually
-app.post('/api/spotify/refresh', async (req, res) => {
   try {
-    await fetchSpotifyData();
-    res.json({ success: true, data: currentTrackData });
+    if (path === '/spotify/tokens' && req.method === 'POST') {
+      const { access_token, refresh_token, expires_in } = req.body;
+      
+      spotifyTokens = {
+        access_token,
+        refresh_token,
+        expires_at: Date.now() + (expires_in * 1000)
+      };
+
+      await fetchSpotifyData();
+      
+      return res.status(200).json({ success: true });
+    }
+
+    if (path === '/spotify/current-track' && req.method === 'GET') {
+      return res.status(200).json({
+        success: true,
+        data: currentTrackData.track ? {
+          track: currentTrackData.track,
+          isPlaying: currentTrackData.isPlaying,
+          lastUpdated: currentTrackData.lastUpdated
+        } : null
+      });
+    }
+
+    if (path === '/spotify/status' && req.method === 'GET') {
+      return res.status(200).json({
+        authenticated: !!spotifyTokens.access_token,
+        hasTrackData: !!currentTrackData.track
+      });
+    }
+
+    if (path === '/spotify/refresh' && req.method === 'POST') {
+      await fetchSpotifyData();
+      return res.status(200).json({ 
+        success: true, 
+        data: currentTrackData 
+      });
+    }
+
+    if (path === '/health' && req.method === 'GET') {
+      return res.status(200).json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString() 
+      });
+    }
+
+    return res.status(404).json({ error: 'Not found' });
+    
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error('API Error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
-});
-
-// Periodic refresh of track data (every 30 seconds)
-setInterval(() => {
-  if (spotifyTokens.access_token) {
-    fetchSpotifyData();
-  }
-}, 30000);
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Spotify API server running on port ${PORT}`);
-});
-
-module.exports = app;
+}
