@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { fetch } = require('undici'); // Use undici for fetch in Node.js
 const app = express();
 
 // Enable CORS for your frontend domains
