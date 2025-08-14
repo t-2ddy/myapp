@@ -4,6 +4,11 @@ const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
 // Always use production URL for OAuth redirect to avoid localhost security issues
 const REDIRECT_URI = 'https://t2ddy-personal.vercel.app';
 
+// API Base URL - adjust for your deployment
+const API_BASE_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3001' 
+  : 'https://t2ddy-personal.vercel.app';
+
 // Spotify Web API endpoints
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
@@ -167,4 +172,58 @@ export async function getValidAccessToken() {
     adminTokenStorage.clearTokens();
     throw new Error('Token refresh failed');
   }
+}
+
+// NEW BACKEND API FUNCTIONS
+
+// Store tokens in backend (after OAuth)
+export async function storeTokensInBackend(tokenData) {
+  const response = await fetch(`${API_BASE_URL}/api/spotify/tokens`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(tokenData)
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to store tokens in backend');
+  }
+
+  return await response.json();
+}
+
+// Get current track from backend (public endpoint)
+export async function getCurrentTrackFromBackend() {
+  const response = await fetch(`${API_BASE_URL}/api/spotify/current-track`);
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch track from backend');
+  }
+
+  return await response.json();
+}
+
+// Check authentication status from backend
+export async function getBackendAuthStatus() {
+  const response = await fetch(`${API_BASE_URL}/api/spotify/status`);
+
+  if (!response.ok) {
+    throw new Error('Failed to check backend auth status');
+  }
+
+  return await response.json();
+}
+
+// Refresh track data in backend
+export async function refreshBackendTrackData() {
+  const response = await fetch(`${API_BASE_URL}/api/spotify/refresh`, {
+    method: 'POST'
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to refresh backend track data');
+  }
+
+  return await response.json();
 }

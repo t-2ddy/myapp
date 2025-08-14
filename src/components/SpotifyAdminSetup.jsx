@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { 
   getAuthorizationUrl, 
   getAccessToken, 
-  adminTokenStorage 
+  adminTokenStorage,
+  storeTokensInBackend
 } from '../utils/spotify';
 
 const SpotifyAdminSetup = ({ onSetupComplete }) => {
@@ -30,7 +31,11 @@ const SpotifyAdminSetup = ({ onSetupComplete }) => {
         
         try {
           const tokenData = await getAccessToken(code);
+          
+          // Store tokens locally AND in backend
           adminTokenStorage.setTokens(tokenData);
+          await storeTokensInBackend(tokenData);
+          
           setStatus('success');
           
           // Clear URL
@@ -42,7 +47,7 @@ const SpotifyAdminSetup = ({ onSetupComplete }) => {
           }, 1500);
           
         } catch (err) {
-          console.error('Token exchange error:', err);
+          console.error('Token exchange/storage error:', err);
           setStatus('error');
           // Clear URL
           window.history.replaceState({}, document.title, window.location.pathname);

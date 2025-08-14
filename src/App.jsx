@@ -157,7 +157,6 @@ function App() {
                style={{ fontFamily: 'monospace'}}
           />
           
-          {/* Spotify Player under ASCII art */}
           <div className="asciiFade-ani mt-8 mb-8 px-6">
             <MySpotifyPlayer key={adminSetupKey} />
           </div>

@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { animate } from 'animejs';
 import { 
-  getCurrentlyPlaying, 
-  getRecentlyPlayed, 
-  getValidAccessToken,
-  adminTokenStorage
+  getCurrentTrackFromBackend,
+  getBackendAuthStatus
 } from '../utils/spotify';
 
 const MySpotifyPlayer = () => {
@@ -15,27 +13,20 @@ const MySpotifyPlayer = () => {
   const recordRef = useRef(null);
   const animationRef = useRef(null);
 
-  // Fetch current or recent track data
+  // Fetch current or recent track data from backend
   const fetchTrackData = async () => {
     try {
       setError(null);
 
-      // Get valid access token (handles refresh automatically)
-      const accessToken = await getValidAccessToken();
-
-      // Try to get currently playing track
-      const currentlyPlaying = await getCurrentlyPlaying(accessToken);
+      // Get track data from backend (public endpoint)
+      const response = await getCurrentTrackFromBackend();
       
-      if (currentlyPlaying && currentlyPlaying.is_playing) {
-        setCurrentTrack(currentlyPlaying.item);
-        setIsPlaying(true);
+      if (response.success && response.data) {
+        setCurrentTrack(response.data.track);
+        setIsPlaying(response.data.isPlaying);
       } else {
-        // Get most recent track if nothing is currently playing
-        const recentTrack = await getRecentlyPlayed(accessToken);
-        if (recentTrack) {
-          setCurrentTrack(recentTrack.track);
-          setIsPlaying(false);
-        }
+        setCurrentTrack(null);
+        setIsPlaying(false);
       }
     } catch (err) {
       console.error('Error fetching track data:', err);
@@ -49,12 +40,8 @@ const MySpotifyPlayer = () => {
 
   // Initial data fetch
   useEffect(() => {
-    if (adminTokenStorage.isAuthenticated()) {
-      fetchTrackData();
-    } else {
-      setLoading(false);
-      setError('Spotify not configured');
-    }
+    // Always try to fetch track data - backend handles authentication
+    fetchTrackData();
   }, []);
 
   // Handle record spinning animation
@@ -88,10 +75,8 @@ const MySpotifyPlayer = () => {
 
   // Refresh data every 30 seconds
   useEffect(() => {
-    if (adminTokenStorage.isAuthenticated()) {
-      const interval = setInterval(fetchTrackData, 30000);
-      return () => clearInterval(interval);
-    }
+    const interval = setInterval(fetchTrackData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
