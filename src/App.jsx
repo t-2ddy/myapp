@@ -152,15 +152,15 @@ function App() {
       <Navbar className='asciiFade-ani'/>
       <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase pt-20">
         <div className="w-full max-w-md py-12 sm:max-w-xl">
-          {/* Spotify Player at the top */}
-          <div className="asciiFade-ani mb-8">
-            <MySpotifyPlayer key={adminSetupKey} />
-          </div>
-          
           <div className="text-center text-[5px] leading-[6px] sm:text-[7.5px] sm:leading-[9px] asciiFade-ani" 
                dangerouslySetInnerHTML={{ __html: asciiArt }} 
                style={{ fontFamily: 'monospace'}}
           />
+          
+          {/* Spotify Player under ASCII art */}
+          <div className="asciiFade-ani mt-8 mb-8">
+            <MySpotifyPlayer key={adminSetupKey} />
+          </div>
           <div className='flex-col px-6 tinos-regular'>
             <div className='flex flex-row justify-center gap-24 sm:gap-36 text-purple-300 mt-8 ease-in-out'>
               {socialIcons.map((social, index) => (
