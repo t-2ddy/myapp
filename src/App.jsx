@@ -17,12 +17,23 @@ function App() {
   // Check admin setup on mount and when URL changes
   useEffect(() => {
     const checkAdminSetup = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const hasCallback = urlParams.get('code') || urlParams.get('error');
-      const isAuthenticated = adminTokenStorage.isAuthenticated();
-      
-      if (hasCallback || !isAuthenticated) {
-        setShowAdminSetup(true);
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasCallback = urlParams.get('code') || urlParams.get('error');
+        const isAuthenticated = adminTokenStorage.isAuthenticated();
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        // Skip setup popup on localhost/development
+        if (isLocalhost) {
+          return;
+        }
+        
+        if (hasCallback || !isAuthenticated) {
+          setShowAdminSetup(true);
+        }
+      } catch (error) {
+        console.error('Error in admin setup check:', error);
+        // Don't block the app from loading
       }
     };
     

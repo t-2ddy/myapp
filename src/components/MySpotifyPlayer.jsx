@@ -29,10 +29,11 @@ const MySpotifyPlayer = () => {
         setIsPlaying(false);
       }
     } catch (err) {
-      console.error('Error fetching track data:', err);
-      setError('Unable to load music data');
+      console.error('Error fetching track data (this is expected in local development):', err);
+      // Fail silently in development - just show no track data
       setCurrentTrack(null);
       setIsPlaying(false);
+      setError(null); // Don't show error message
     } finally {
       setLoading(false);
     }
@@ -91,6 +92,14 @@ const MySpotifyPlayer = () => {
         </div>
       </div>
     );
+  }
+
+  // Don't show error state or empty state in development
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  if (isLocalhost && (!currentTrack || error)) {
+    // Hide the component entirely in localhost when no data
+    return null;
   }
 
   if (error && !currentTrack) {
