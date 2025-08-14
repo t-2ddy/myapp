@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
@@ -6,8 +6,14 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
+// Initialize Redis client
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
 async function refreshAccessToken() {
-  const refresh_token = await kv.get('spotify_refresh_token');
+  const refresh_token = await redis.get('spotify_refresh_token');
   
   if (!refresh_token) {
     throw new Error('No refresh token available');
@@ -31,19 +37,19 @@ async function refreshAccessToken() {
 
   const tokenData = await response.json();
   
-  await kv.set('spotify_access_token', tokenData.access_token);
+  await redis.set('spotify_access_token', tokenData.access_token);
   if (tokenData.refresh_token) {
-    await kv.set('spotify_refresh_token', tokenData.refresh_token);
+    await redis.set('spotify_refresh_token', tokenData.refresh_token);
   }
   const expires_at = Date.now() + (tokenData.expires_in * 1000);
-  await kv.set('spotify_expires_at', expires_at);
+  await redis.set('spotify_expires_at', expires_at);
   
   return tokenData.access_token;
 }
 
 async function getValidAccessToken() {
-  const access_token = await kv.get('spotify_access_token');
-  const expires_at = await kv.get('spotify_expires_at');
+  const access_token = await redis.get('spotify_access_token');
+  const expires_at = await redis.get('spotify_expires_at');
   
   if (!access_token) {
     throw new Error('No access token available');
@@ -73,7 +79,7 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        await kv.set('current_track_data', JSON.stringify(trackData));
+        await redis.set('current_track_data', JSON.stringify(trackData));
         
         return trackData;
       }
@@ -92,7 +98,7 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        await kv.set('current_track_data', JSON.stringify(trackData));
+        await redis.set('current_track_data', JSON.stringify(trackData));
         
         return trackData;
       }
@@ -136,10 +142,10 @@ export default async function handler(req, res) {
     if (path === '/spotify/tokens' && req.method === 'POST') {
       const { access_token, refresh_token, expires_in } = req.body;
       
-      await kv.set('spotify_access_token', access_token);
-      await kv.set('spotify_refresh_token', refresh_token);
+      await redis.set('spotify_access_token', access_token);
+      await redis.set('spotify_refresh_token', refresh_token);
       const expires_at = Date.now() + (expires_in * 1000);
-      await kv.set('spotify_expires_at', expires_at);
+      await redis.set('spotify_expires_at', expires_at);
 
       await fetchSpotifyData();
       
@@ -147,7 +153,7 @@ export default async function handler(req, res) {
     }
 
     if (path === '/spotify/current-track' && req.method === 'GET') {
-      let cachedData = await kv.get('current_track_data');
+      let cachedData = await redis.get('current_track_data');
       
       if (cachedData) {
         if (typeof cachedData === 'string') {
@@ -179,8 +185,8 @@ export default async function handler(req, res) {
     }
 
     if (path === '/spotify/status' && req.method === 'GET') {
-      const access_token = await kv.get('spotify_access_token');
-      const trackData = await kv.get('current_track_data');
+      const access_token = await redis.get('spotify_access_token');
+      const trackData = await redis.get('current_track_data');
       
       return res.status(200).json({
         authenticated: !!access_token,
