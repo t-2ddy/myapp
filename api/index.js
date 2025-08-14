@@ -1,23 +1,15 @@
+import { kv } from '@vercel/kv';
+
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-let spotifyTokens = {
-  access_token: null,
-  refresh_token: null,
-  expires_at: null
-};
-
-let currentTrackData = {
-  track: null,
-  isPlaying: false,
-  lastUpdated: null
-};
-
 async function refreshAccessToken() {
-  if (!spotifyTokens.refresh_token) {
+  const refresh_token = await kv.get('spotify_refresh_token');
+  
+  if (!refresh_token) {
     throw new Error('No refresh token available');
   }
 
@@ -29,7 +21,7 @@ async function refreshAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: spotifyTokens.refresh_token,
+      refresh_token: refresh_token,
     })
   });
 
@@ -38,25 +30,30 @@ async function refreshAccessToken() {
   }
 
   const tokenData = await response.json();
-  spotifyTokens.access_token = tokenData.access_token;
+  
+  await kv.set('spotify_access_token', tokenData.access_token);
   if (tokenData.refresh_token) {
-    spotifyTokens.refresh_token = tokenData.refresh_token;
+    await kv.set('spotify_refresh_token', tokenData.refresh_token);
   }
-  spotifyTokens.expires_at = Date.now() + (tokenData.expires_in * 1000);
+  const expires_at = Date.now() + (tokenData.expires_in * 1000);
+  await kv.set('spotify_expires_at', expires_at);
   
   return tokenData.access_token;
 }
 
 async function getValidAccessToken() {
-  if (!spotifyTokens.access_token) {
+  const access_token = await kv.get('spotify_access_token');
+  const expires_at = await kv.get('spotify_expires_at');
+  
+  if (!access_token) {
     throw new Error('No access token available');
   }
 
-  if (spotifyTokens.expires_at && Date.now() >= (spotifyTokens.expires_at - 60000)) {
+  if (expires_at && Date.now() >= (expires_at - 60000)) {
     return await refreshAccessToken();
   }
 
-  return spotifyTokens.access_token;
+  return access_token;
 }
 
 async function fetchSpotifyData() {
@@ -70,12 +67,15 @@ async function fetchSpotifyData() {
     if (currentResponse.status === 200) {
       const currentData = await currentResponse.json();
       if (currentData.is_playing) {
-        currentTrackData = {
+        const trackData = {
           track: currentData.item,
           isPlaying: true,
           lastUpdated: Date.now()
         };
-        return;
+        
+        await kv.set('current_track_data', JSON.stringify(trackData));
+        
+        return trackData;
       }
     }
 
@@ -86,15 +86,22 @@ async function fetchSpotifyData() {
     if (recentResponse.ok) {
       const recentData = await recentResponse.json();
       if (recentData.items && recentData.items.length > 0) {
-        currentTrackData = {
+        const trackData = {
           track: recentData.items[0].track,
           isPlaying: false,
           lastUpdated: Date.now()
         };
+        
+        await kv.set('current_track_data', JSON.stringify(trackData));
+        
+        return trackData;
       }
     }
+    
+    return null;
   } catch (error) {
     console.error('Error fetching Spotify data:', error);
+    return null;
   }
 }
 
@@ -129,11 +136,10 @@ export default async function handler(req, res) {
     if (path === '/spotify/tokens' && req.method === 'POST') {
       const { access_token, refresh_token, expires_in } = req.body;
       
-      spotifyTokens = {
-        access_token,
-        refresh_token,
-        expires_at: Date.now() + (expires_in * 1000)
-      };
+      await kv.set('spotify_access_token', access_token);
+      await kv.set('spotify_refresh_token', refresh_token);
+      const expires_at = Date.now() + (expires_in * 1000);
+      await kv.set('spotify_expires_at', expires_at);
 
       await fetchSpotifyData();
       
@@ -141,28 +147,52 @@ export default async function handler(req, res) {
     }
 
     if (path === '/spotify/current-track' && req.method === 'GET') {
+      let cachedData = await kv.get('current_track_data');
+      
+      if (cachedData) {
+        if (typeof cachedData === 'string') {
+          cachedData = JSON.parse(cachedData);
+        }
+        
+        if (cachedData.lastUpdated && Date.now() - cachedData.lastUpdated > 30000) {
+          const freshData = await fetchSpotifyData();
+          if (freshData) {
+            return res.status(200).json({
+              success: true,
+              data: freshData
+            });
+          }
+        }
+        
+        return res.status(200).json({
+          success: true,
+          data: cachedData
+        });
+      }
+      
+      const freshData = await fetchSpotifyData();
+      
       return res.status(200).json({
         success: true,
-        data: currentTrackData.track ? {
-          track: currentTrackData.track,
-          isPlaying: currentTrackData.isPlaying,
-          lastUpdated: currentTrackData.lastUpdated
-        } : null
+        data: freshData
       });
     }
 
     if (path === '/spotify/status' && req.method === 'GET') {
+      const access_token = await kv.get('spotify_access_token');
+      const trackData = await kv.get('current_track_data');
+      
       return res.status(200).json({
-        authenticated: !!spotifyTokens.access_token,
-        hasTrackData: !!currentTrackData.track
+        authenticated: !!access_token,
+        hasTrackData: !!trackData
       });
     }
 
     if (path === '/spotify/refresh' && req.method === 'POST') {
-      await fetchSpotifyData();
+      const freshData = await fetchSpotifyData();
       return res.status(200).json({ 
         success: true, 
-        data: currentTrackData 
+        data: freshData 
       });
     }
 
