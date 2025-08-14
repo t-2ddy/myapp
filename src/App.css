@@ -21,3 +21,16 @@
   font-weight: 700;
   font-style: italic;
 }
+
+/* Prevent white overscroll on mobile */
+html, body {
+  background-color: #18181b; /* zinc-900 equivalent */
+  overscroll-behavior: none;
+}
+
+/* Additional overscroll prevention */
+body {
+  background: #18181b;
+  margin: 0;
+  padding: 0;
+}

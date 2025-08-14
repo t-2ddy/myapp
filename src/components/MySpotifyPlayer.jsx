@@ -96,7 +96,7 @@ const MySpotifyPlayer = () => {
 
   if (loading) {
     return (
-      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 max-w-lg mx-auto mb-6">
+      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 w-full">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-zinc-700 rounded-full animate-pulse flex-shrink-0"></div>
           <div className="flex-1 min-w-0">
@@ -110,7 +110,7 @@ const MySpotifyPlayer = () => {
 
   if (error && !currentTrack) {
     return (
-      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 max-w-lg mx-auto mb-6">
+      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 w-full">
         <div className="flex items-center space-x-3 text-neutral-400">
           <div className="w-12 h-12 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-xs">♪</span>
@@ -125,7 +125,7 @@ const MySpotifyPlayer = () => {
 
   if (!currentTrack) {
     return (
-      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 max-w-lg mx-auto mb-6">
+      <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 w-full">
         <div className="flex items-center space-x-3 text-neutral-400">
           <div className="w-12 h-12 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-xs">♪</span>
@@ -139,7 +139,7 @@ const MySpotifyPlayer = () => {
   }
 
   return (
-    <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 max-w-lg mx-auto mb-6 border border-zinc-700/50">
+    <div className="bg-zinc-800/50 backdrop-blur-sm rounded-lg p-4 w-full border border-zinc-700/50">
       <div className="flex items-center space-x-3">
         {/* Record Player */}
         <div className="relative w-12 h-12 flex-shrink-0">
