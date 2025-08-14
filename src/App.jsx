@@ -3,11 +3,50 @@ import './App.css'
 import { animate, createScope, stagger } from 'animejs'
 import Navbar from './components/Navbar'
 import Projects from './components/Projects'
+import MySpotifyPlayer from './components/MySpotifyPlayer'
+import SpotifyAdminSetup from './components/SpotifyAdminSetup'
+import { adminTokenStorage } from './utils/spotify'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
 function App() {
   const [asciiArt, setAsciiArt] = useState('')
+  const [showAdminSetup, setShowAdminSetup] = useState(false)
+  const [adminSetupKey, setAdminSetupKey] = useState(0) // Force re-render
+
+  // Check admin setup on mount and when URL changes
+  useEffect(() => {
+    const checkAdminSetup = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasCallback = urlParams.get('code') || urlParams.get('error');
+      const isAuthenticated = adminTokenStorage.isAuthenticated();
+      
+      if (hasCallback || !isAuthenticated) {
+        setShowAdminSetup(true);
+      }
+    };
+    
+    checkAdminSetup();
+  }, []);
+
+  const handleSetupComplete = () => {
+    setShowAdminSetup(false);
+    setAdminSetupKey(prev => prev + 1); // Force MySpotifyPlayer to re-render
+  };
+
+  // Show admin in development or if not authenticated
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Press Ctrl+Shift+S to show admin setup
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+        setShowAdminSetup(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   const socialIcons = [
     {
       href: 'https://discordapp.com/users/840485448458960918',
@@ -113,6 +152,11 @@ function App() {
       <Navbar className='asciiFade-ani'/>
       <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase pt-20">
         <div className="w-full max-w-md py-12 sm:max-w-xl">
+          {/* Spotify Player at the top */}
+          <div className="asciiFade-ani mb-8">
+            <MySpotifyPlayer key={adminSetupKey} />
+          </div>
+          
           <div className="text-center text-[5px] leading-[6px] sm:text-[7.5px] sm:leading-[9px] asciiFade-ani" 
                dangerouslySetInnerHTML={{ __html: asciiArt }} 
                style={{ fontFamily: 'monospace'}}
@@ -173,6 +217,11 @@ function App() {
           </div>
         </div>
       </div>
+      
+      {/* Admin Setup Modal */}
+      {showAdminSetup && (
+        <SpotifyAdminSetup onSetupComplete={handleSetupComplete} />
+      )}
     </>
   )
 }
