@@ -1,5 +1,4 @@
-import { Redis } from '@upstash/redis';
-import { createClient as createNodeRedisClient } from 'redis';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
@@ -7,77 +6,76 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-// Provide a resilient storage layer that falls back to in-memory if Redis is not configured
-let redis;
-let usingMemoryStore = false;
+// Provide a resilient storage layer using Supabase Storage, with in-memory fallback
+let redis; // adapter interface: get/set/del
 let storageLabel = '[Storage]';
 
-const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseBucket = process.env.SUPABASE_BUCKET_NAME || 'spotify-tokens';
 
-if (upstashUrl && upstashToken) {
-  // Prefer Upstash REST if provided
-  redis = new Redis({ url: upstashUrl, token: upstashToken });
-  storageLabel = '[Storage:Upstash]';
-  console.log(`${storageLabel} Using Upstash Redis REST`);
+if (supabaseUrl && supabaseServiceKey) {
+  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
+  let bucketEnsured = false;
+  const ensureBucket = async () => {
+    if (bucketEnsured) return;
+    try {
+      const { error } = await supabase.storage.createBucket(supabaseBucket, { public: false });
+      if (error && !String(error?.message || '').toLowerCase().includes('exists')) {
+        console.warn('[Supabase] createBucket warning:', error.message);
+      }
+    } catch (e) {
+      // ignore; bucket may already exist
+    } finally {
+      bucketEnsured = true;
+    }
+  };
+
+  const toPath = (key) => `${key}.json`;
+
+  redis = {
+    async get(key) {
+      await ensureBucket();
+      const { data, error } = await supabase.storage.from(supabaseBucket).download(toPath(key));
+      if (error) return null;
+      const buffer = Buffer.from(await data.arrayBuffer());
+      const text = buffer.toString('utf8');
+      return text;
+    },
+    async set(key, value /*, options*/) {
+      await ensureBucket();
+      const body = new Blob([typeof value === 'string' ? value : JSON.stringify(value)], { type: 'application/json' });
+      const { error } = await supabase.storage.from(supabaseBucket).upload(toPath(key), body, { upsert: true, contentType: 'application/json' });
+      if (error) throw error;
+      return 'OK';
+    },
+    async del(key) {
+      await ensureBucket();
+      const { error } = await supabase.storage.from(supabaseBucket).remove([toPath(key)]);
+      if (error) return 0;
+      return 1;
+    }
+  };
+  storageLabel = '[Storage:Supabase]';
+  console.log(`${storageLabel} Using Supabase Storage bucket '${supabaseBucket}'`);
 } else {
-  // Try Redis Cloud (node-redis)
-  const explicitUrl = process.env.REDIS_URL || process.env.REDIS_TLS_URL;
-  const host = process.env.REDIS_HOST;
-  const port = process.env.REDIS_PORT;
-  const password = process.env.REDIS_PASSWORD || process.env.REDIS_PASS;
-
-  if (explicitUrl || (host && port && password)) {
-    const nodeUrl = explicitUrl || `rediss://default:${encodeURIComponent(password)}@${host}:${port}`;
-    const client = createNodeRedisClient({ url: nodeUrl, socket: { tls: true } });
-    let connectedPromise;
-
-    const ensureConnected = async () => {
-      if (client.isOpen) return;
-      if (!connectedPromise) connectedPromise = client.connect().catch(err => { connectedPromise = undefined; throw err; });
-      await connectedPromise;
-    };
-
-    // Adapter with Upstash-like API
-    redis = {
-      async get(key) {
-        await ensureConnected();
-        return await client.get(key);
-      },
-      async set(key, value, options) {
-        await ensureConnected();
-        if (options && typeof options.ex === 'number') {
-          return await client.set(key, value, { EX: options.ex });
-        }
-        return await client.set(key, value);
-      },
-      async del(key) {
-        await ensureConnected();
-        return await client.del(key);
-      }
-    };
-    storageLabel = '[Storage:RedisCloud]';
-    console.log(`${storageLabel} Using Redis Cloud via node-redis`);
-  } else {
-    // Fallback to in-memory
-    usingMemoryStore = true;
-    storageLabel = '[Storage:Memory]';
-    console.warn(`${storageLabel} No Redis credentials found. Falling back to in-memory (not persistent).`);
-    const mem = new Map();
-    redis = {
-      async get(key) {
-        const v = mem.get(key);
-        return v === undefined ? null : v;
-      },
-      async set(key, value) {
-        mem.set(key, value);
-        return 'OK';
-      },
-      async del(key) {
-        return mem.delete(key) ? 1 : 0;
-      }
-    };
-  }
+  // Fallback to in-memory store
+  const mem = new Map();
+  redis = {
+    async get(key) {
+      const v = mem.get(key);
+      return v === undefined ? null : v;
+    },
+    async set(key, value) {
+      mem.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+      return 'OK';
+    },
+    async del(key) {
+      return mem.delete(key) ? 1 : 0;
+    }
+  };
+  storageLabel = '[Storage:Memory]';
+  console.warn(`${storageLabel} SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set. Using in-memory (non-persistent).`);
 }
 
 async function exchangeCodeForToken(code) {
