@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { createClient as createNodeRedisClient } from 'redis';
 
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
@@ -6,10 +7,78 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+// Provide a resilient storage layer that falls back to in-memory if Redis is not configured
+let redis;
+let usingMemoryStore = false;
+let storageLabel = '[Storage]';
+
+const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+if (upstashUrl && upstashToken) {
+  // Prefer Upstash REST if provided
+  redis = new Redis({ url: upstashUrl, token: upstashToken });
+  storageLabel = '[Storage:Upstash]';
+  console.log(`${storageLabel} Using Upstash Redis REST`);
+} else {
+  // Try Redis Cloud (node-redis)
+  const explicitUrl = process.env.REDIS_URL || process.env.REDIS_TLS_URL;
+  const host = process.env.REDIS_HOST;
+  const port = process.env.REDIS_PORT;
+  const password = process.env.REDIS_PASSWORD || process.env.REDIS_PASS;
+
+  if (explicitUrl || (host && port && password)) {
+    const nodeUrl = explicitUrl || `rediss://default:${encodeURIComponent(password)}@${host}:${port}`;
+    const client = createNodeRedisClient({ url: nodeUrl, socket: { tls: true } });
+    let connectedPromise;
+
+    const ensureConnected = async () => {
+      if (client.isOpen) return;
+      if (!connectedPromise) connectedPromise = client.connect().catch(err => { connectedPromise = undefined; throw err; });
+      await connectedPromise;
+    };
+
+    // Adapter with Upstash-like API
+    redis = {
+      async get(key) {
+        await ensureConnected();
+        return await client.get(key);
+      },
+      async set(key, value, options) {
+        await ensureConnected();
+        if (options && typeof options.ex === 'number') {
+          return await client.set(key, value, { EX: options.ex });
+        }
+        return await client.set(key, value);
+      },
+      async del(key) {
+        await ensureConnected();
+        return await client.del(key);
+      }
+    };
+    storageLabel = '[Storage:RedisCloud]';
+    console.log(`${storageLabel} Using Redis Cloud via node-redis`);
+  } else {
+    // Fallback to in-memory
+    usingMemoryStore = true;
+    storageLabel = '[Storage:Memory]';
+    console.warn(`${storageLabel} No Redis credentials found. Falling back to in-memory (not persistent).`);
+    const mem = new Map();
+    redis = {
+      async get(key) {
+        const v = mem.get(key);
+        return v === undefined ? null : v;
+      },
+      async set(key, value) {
+        mem.set(key, value);
+        return 'OK';
+      },
+      async del(key) {
+        return mem.delete(key) ? 1 : 0;
+      }
+    };
+  }
+}
 
 async function exchangeCodeForToken(code) {
   console.log('Exchanging code for token...');
