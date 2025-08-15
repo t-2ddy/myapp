@@ -135,9 +135,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Extract path from URL for Vercel functions
-  const url = new URL(req.url, 'https://example.com');
-  const path = url.pathname;
+  // Extract path from request URL - Vercel provides the full path
+  const path = req.url.includes('?') ? req.url.split('?')[0] : req.url;
+  
+  // Debug logging
+  console.log('API Debug:', {
+    method: req.method,
+    url: req.url,
+    path: path,
+    headers: req.headers
+  });
 
   try {
     if (path === '/api/spotify/tokens' && req.method === 'POST') {

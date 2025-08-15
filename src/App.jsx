@@ -13,6 +13,16 @@ function App() {
   const [asciiArt, setAsciiArt] = useState('')
   const [showAdminSetup, setShowAdminSetup] = useState(false)
   const [adminSetupKey, setAdminSetupKey] = useState(0) // Force re-render
+  
+  // Debug: Force show popup on production for testing
+  useEffect(() => {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isLocalhost) {
+      // Always show popup on production for now (remove this later)
+      console.log('🔧 DEBUG: Force showing auth popup on production');
+      setTimeout(() => setShowAdminSetup(true), 1000);
+    }
+  }, []);
 
   // Check admin setup on mount and when URL changes
   useEffect(() => {
@@ -22,22 +32,44 @@ function App() {
         const hasCallback = urlParams.get('code') || urlParams.get('error');
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
-        // Skip setup popup on localhost/development
-        if (isLocalhost) {
+        // If we have a callback, always show setup to handle it
+        if (hasCallback) {
+          console.log('Spotify callback detected, showing setup');
+          setShowAdminSetup(true);
           return;
         }
 
-        // Check if backend has authentication
-        const backendStatus = await getBackendAuthStatus();
-        const localAuth = adminTokenStorage.isAuthenticated();
-        
-        // Show setup if we have a callback OR if neither backend nor local storage has auth
-        if (hasCallback || (!backendStatus.authenticated && !localAuth)) {
+        // Skip further checks on localhost/development (no auto-popup)
+        if (isLocalhost) {
+          console.log('Localhost detected, skipping auto-popup (use Ctrl+Shift+S)');
+          return;
+        }
+
+        // Check authentication status
+        try {
+          const backendStatus = await getBackendAuthStatus();
+          const localAuth = adminTokenStorage.isAuthenticated();
+          
+          console.log('Auth check:', { 
+            backendAuth: backendStatus.authenticated, 
+            localAuth, 
+            hasTrackData: backendStatus.hasTrackData 
+          });
+          
+          // Show setup if no authentication anywhere
+          if (!backendStatus.authenticated && !localAuth) {
+            console.log('No authentication found, showing setup popup');
+            setShowAdminSetup(true);
+          }
+        } catch (authError) {
+          console.error('Auth check failed, showing setup popup:', authError);
+          // If auth check fails, show popup to be safe
           setShowAdminSetup(true);
         }
       } catch (error) {
         console.error('Error in admin setup check:', error);
-        // Don't block the app from loading
+        // Show popup if anything fails
+        setShowAdminSetup(true);
       }
     };
     
@@ -54,8 +86,17 @@ function App() {
     const handleKeyPress = (e) => {
       // Press Ctrl+Shift+S to show admin setup
       if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-        console.log('Admin setup triggered manually');
+        console.log('🎵 Admin setup triggered manually with Ctrl+Shift+S');
         setShowAdminSetup(true);
+      }
+      // Also allow just pressing 'S' for easier testing
+      if (e.key === 'S' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const target = e.target;
+        // Only trigger if not typing in an input
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+          console.log('🎵 Quick admin setup triggered with S key');
+          setShowAdminSetup(true);
+        }
       }
     };
     
