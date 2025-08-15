@@ -11,6 +11,35 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+async function exchangeCodeForToken(code) {
+  console.log('Exchanging code for token...');
+  
+  const response = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
+    },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: 'https://t2ddy-personal.vercel.app'
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Code exchange failed:', {
+      status: response.status,
+      error: errorText,
+      code: code
+    });
+    throw new Error(`Failed to exchange code: ${errorText}`);
+  }
+
+  return await response.json();
+}
+
 async function refreshAccessToken() {
   const refresh_token = await redis.get('spotify_refresh_token');
   
@@ -21,35 +50,56 @@ async function refreshAccessToken() {
 
   console.log('Refreshing access token...');
   
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refresh_token,
-    })
-  });
+  try {
+    const response = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refresh_token,
+      })
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Token refresh failed:', errorText);
-    throw new Error('Failed to refresh token');
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Token refresh failed:', {
+        status: response.status,
+        error: errorText,
+        refresh_token_length: refresh_token.length
+      });
+      throw new Error(`Failed to refresh token: ${errorText}`);
+    }
 
-  const tokenData = await response.json();
-  
-  await redis.set('spotify_access_token', tokenData.access_token);
-  if (tokenData.refresh_token) {
-    await redis.set('spotify_refresh_token', tokenData.refresh_token);
+    const tokenData = await response.json();
+    
+    // Store tokens atomically
+    const storePromises = [
+      redis.set('spotify_access_token', tokenData.access_token),
+      redis.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
+    ];
+
+    // Only update refresh token if we got a new one
+    if (tokenData.refresh_token) {
+      storePromises.push(redis.set('spotify_refresh_token', tokenData.refresh_token));
+    }
+
+    await Promise.all(storePromises);
+    
+    console.log('Token refreshed and stored successfully');
+    return tokenData.access_token;
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    // If refresh fails, clear tokens to force re-authentication
+    await Promise.all([
+      redis.del('spotify_access_token'),
+      redis.del('spotify_refresh_token'),
+      redis.del('spotify_expires_at')
+    ]);
+    throw error;
   }
-  const expires_at = Date.now() + (tokenData.expires_in * 1000);
-  await redis.set('spotify_expires_at', expires_at);
-  
-  console.log('Token refreshed successfully');
-  return tokenData.access_token;
 }
 
 async function getValidAccessToken() {
@@ -196,32 +246,41 @@ export default async function handler(req, res) {
 
   try {
     if (path === '/api/spotify/tokens' && req.method === 'POST') {
-      const { access_token, refresh_token, expires_in } = req.body;
+      const { code } = req.body;
       
-      if (!access_token || !refresh_token) {
-        console.error('Token storage failed: Missing required tokens');
+      if (!code) {
+        console.error('Token exchange failed: Missing authorization code');
         return res.status(400).json({ 
           success: false, 
-          error: 'Missing required tokens' 
+          error: 'Missing authorization code' 
         });
       }
       
       try {
-        console.log('Storing tokens in Redis...');
+        console.log('Starting token exchange process...');
         
-        // Store tokens with proper error handling
+        // Exchange the code for tokens
+        const tokenData = await exchangeCodeForToken(code);
+        
+        if (!tokenData.access_token || !tokenData.refresh_token) {
+          throw new Error('Invalid token data received from Spotify');
+        }
+        
+        // Store tokens atomically
         const storePromises = [
-          redis.set('spotify_access_token', access_token),
-          redis.set('spotify_refresh_token', refresh_token),
-          redis.set('spotify_expires_at', Date.now() + (expires_in * 1000))
+          redis.set('spotify_access_token', tokenData.access_token),
+          redis.set('spotify_refresh_token', tokenData.refresh_token),
+          redis.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
         ];
         
         await Promise.all(storePromises);
         console.log('Tokens stored successfully');
 
         // Verify tokens were stored
-        const storedAccessToken = await redis.get('spotify_access_token');
-        const storedRefreshToken = await redis.get('spotify_refresh_token');
+        const [storedAccessToken, storedRefreshToken] = await Promise.all([
+          redis.get('spotify_access_token'),
+          redis.get('spotify_refresh_token')
+        ]);
         
         if (!storedAccessToken || !storedRefreshToken) {
           throw new Error('Token verification failed');
@@ -235,7 +294,7 @@ export default async function handler(req, res) {
           trackData: trackData 
         });
       } catch (error) {
-        console.error('Token storage error:', error);
+        console.error('Token exchange/storage error:', error);
         // Clean up any partially stored tokens
         await Promise.all([
           redis.del('spotify_access_token'),
@@ -245,7 +304,7 @@ export default async function handler(req, res) {
         
         return res.status(500).json({
           success: false,
-          error: 'Failed to store authentication tokens'
+          error: error.message || 'Failed to exchange/store tokens'
         });
       }
     }
