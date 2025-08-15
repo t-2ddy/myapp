@@ -15,9 +15,12 @@ async function refreshAccessToken() {
   const refresh_token = await redis.get('spotify_refresh_token');
   
   if (!refresh_token) {
+    console.log('No refresh token available in Redis');
     throw new Error('No refresh token available');
   }
 
+  console.log('Refreshing access token...');
+  
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -31,6 +34,8 @@ async function refreshAccessToken() {
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Token refresh failed:', errorText);
     throw new Error('Failed to refresh token');
   }
 
@@ -43,6 +48,7 @@ async function refreshAccessToken() {
   const expires_at = Date.now() + (tokenData.expires_in * 1000);
   await redis.set('spotify_expires_at', expires_at);
   
+  console.log('Token refreshed successfully');
   return tokenData.access_token;
 }
 
@@ -51,10 +57,12 @@ async function getValidAccessToken() {
   const expires_at = await redis.get('spotify_expires_at');
   
   if (!access_token) {
-    throw new Error('No access token available');
+    console.log('No access token found, attempting refresh...');
+    return await refreshAccessToken();
   }
 
   if (expires_at && Date.now() >= (expires_at - 60000)) {
+    console.log('Token expired, refreshing...');
     return await refreshAccessToken();
   }
 
@@ -64,6 +72,7 @@ async function getValidAccessToken() {
 async function fetchSpotifyData() {
   try {
     const accessToken = await getValidAccessToken();
+    console.log('Fetching Spotify data with valid token');
 
     const currentResponse = await fetch(CURRENTLY_PLAYING_URL, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -82,10 +91,12 @@ async function fetchSpotifyData() {
           ex: 60
         });
         
+        console.log('Currently playing:', currentData.item.name);
         return trackData;
       }
     }
 
+    console.log('Nothing currently playing, fetching recently played...');
     const recentResponse = await fetch(RECENTLY_PLAYED_URL, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
@@ -103,10 +114,12 @@ async function fetchSpotifyData() {
           ex: 60
         });
         
+        console.log('Last played:', recentData.items[0].track.name);
         return trackData;
       }
     }
     
+    console.log('No track data available');
     return null;
   } catch (error) {
     console.error('Error fetching Spotify data:', error);
@@ -114,15 +127,21 @@ async function fetchSpotifyData() {
   }
 }
 
-function setCorsHeaders(res) {
+function setCorsHeaders(req, res) {
+  const origin = req.headers.origin;
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     'https://t2ddy-personal.vercel.app'
   ];
   
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://t2ddy-personal.vercel.app');
+  }
+  
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', 'https://t2ddy-personal.vercel.app');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -131,7 +150,7 @@ function setCorsHeaders(res) {
 }
 
 export default async function handler(req, res) {
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
   
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -140,25 +159,35 @@ export default async function handler(req, res) {
 
   const path = req.url.includes('?') ? req.url.split('?')[0] : req.url;
   
-  console.log('API Debug:', {
+  console.log('API Request:', {
     method: req.method,
-    url: req.url,
     path: path,
-    headers: req.headers
+    origin: req.headers.origin
   });
 
   try {
     if (path === '/api/spotify/tokens' && req.method === 'POST') {
       const { access_token, refresh_token, expires_in } = req.body;
       
+      if (!access_token || !refresh_token) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Missing required tokens' 
+        });
+      }
+      
+      console.log('Storing tokens in Redis...');
       await redis.set('spotify_access_token', access_token);
       await redis.set('spotify_refresh_token', refresh_token);
       const expires_at = Date.now() + (expires_in * 1000);
       await redis.set('spotify_expires_at', expires_at);
 
-      await fetchSpotifyData();
+      const trackData = await fetchSpotifyData();
       
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ 
+        success: true,
+        trackData: trackData 
+      });
     }
 
     if (path === '/api/spotify/current-track' && req.method === 'GET') {
@@ -170,6 +199,7 @@ export default async function handler(req, res) {
         }
         
         if (cachedData.lastUpdated && Date.now() - cachedData.lastUpdated > 30000) {
+          console.log('Cache stale, fetching fresh data...');
           const freshData = await fetchSpotifyData();
           if (freshData) {
             return res.status(200).json({
@@ -179,12 +209,14 @@ export default async function handler(req, res) {
           }
         }
         
+        console.log('Returning cached track data');
         return res.status(200).json({
           success: true,
           data: cachedData
         });
       }
       
+      console.log('No cached data, fetching fresh...');
       const freshData = await fetchSpotifyData();
       
       return res.status(200).json({
@@ -195,15 +227,23 @@ export default async function handler(req, res) {
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
       const access_token = await redis.get('spotify_access_token');
+      const refresh_token = await redis.get('spotify_refresh_token');
       const trackData = await redis.get('current_track_data');
       
+      console.log('Status check:', {
+        hasAccessToken: !!access_token,
+        hasRefreshToken: !!refresh_token,
+        hasTrackData: !!trackData
+      });
+      
       return res.status(200).json({
-        authenticated: !!access_token,
+        authenticated: !!(access_token || refresh_token),
         hasTrackData: !!trackData
       });
     }
 
     if (path === '/api/spotify/refresh' && req.method === 'POST') {
+      console.log('Manual refresh requested');
       const freshData = await fetchSpotifyData();
       return res.status(200).json({ 
         success: true, 
@@ -214,7 +254,8 @@ export default async function handler(req, res) {
     if (path === '/api/health' && req.method === 'GET') {
       return res.status(200).json({ 
         status: 'ok', 
-        timestamp: new Date().toISOString() 
+        timestamp: new Date().toISOString(),
+        redis: !!redis
       });
     }
 
