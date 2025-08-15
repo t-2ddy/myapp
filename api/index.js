@@ -53,20 +53,49 @@ async function refreshAccessToken() {
 }
 
 async function getValidAccessToken() {
-  const access_token = await redis.get('spotify_access_token');
-  const expires_at = await redis.get('spotify_expires_at');
-  
-  if (!access_token) {
-    console.log('No access token found, attempting refresh...');
-    return await refreshAccessToken();
-  }
+  try {
+    const access_token = await redis.get('spotify_access_token');
+    const expires_at = parseInt(await redis.get('spotify_expires_at'));
+    const refresh_token = await redis.get('spotify_refresh_token');
+    
+    console.log('Token check:', {
+      hasAccessToken: !!access_token,
+      hasRefreshToken: !!refresh_token,
+      expiresAt: expires_at,
+      now: Date.now(),
+      expired: expires_at ? Date.now() >= (expires_at - 60000) : true
+    });
 
-  if (expires_at && Date.now() >= (expires_at - 60000)) {
-    console.log('Token expired, refreshing...');
-    return await refreshAccessToken();
-  }
+    // If we have no access token but have refresh token, try refresh
+    if (!access_token && refresh_token) {
+      console.log('No access token found but have refresh token, attempting refresh...');
+      return await refreshAccessToken();
+    }
 
-  return access_token;
+    // If we have no tokens at all, we can't proceed
+    if (!access_token && !refresh_token) {
+      console.log('No tokens available, authentication required');
+      throw new Error('Authentication required');
+    }
+
+    // If token is expired and we have refresh token, refresh it
+    if (expires_at && Date.now() >= (expires_at - 60000) && refresh_token) {
+      console.log('Token expired, refreshing...');
+      return await refreshAccessToken();
+    }
+
+    // If we have a valid access token, use it
+    if (access_token && (!expires_at || Date.now() < (expires_at - 60000))) {
+      console.log('Using existing valid access token');
+      return access_token;
+    }
+
+    // If we get here something is wrong with our token state
+    throw new Error('Invalid token state');
+  } catch (error) {
+    console.error('Error in getValidAccessToken:', error);
+    throw error;
+  }
 }
 
 async function fetchSpotifyData() {
@@ -170,24 +199,55 @@ export default async function handler(req, res) {
       const { access_token, refresh_token, expires_in } = req.body;
       
       if (!access_token || !refresh_token) {
+        console.error('Token storage failed: Missing required tokens');
         return res.status(400).json({ 
           success: false, 
           error: 'Missing required tokens' 
         });
       }
       
-      console.log('Storing tokens in Redis...');
-      await redis.set('spotify_access_token', access_token);
-      await redis.set('spotify_refresh_token', refresh_token);
-      const expires_at = Date.now() + (expires_in * 1000);
-      await redis.set('spotify_expires_at', expires_at);
+      try {
+        console.log('Storing tokens in Redis...');
+        
+        // Store tokens with proper error handling
+        const storePromises = [
+          redis.set('spotify_access_token', access_token),
+          redis.set('spotify_refresh_token', refresh_token),
+          redis.set('spotify_expires_at', Date.now() + (expires_in * 1000))
+        ];
+        
+        await Promise.all(storePromises);
+        console.log('Tokens stored successfully');
 
-      const trackData = await fetchSpotifyData();
-      
-      return res.status(200).json({ 
-        success: true,
-        trackData: trackData 
-      });
+        // Verify tokens were stored
+        const storedAccessToken = await redis.get('spotify_access_token');
+        const storedRefreshToken = await redis.get('spotify_refresh_token');
+        
+        if (!storedAccessToken || !storedRefreshToken) {
+          throw new Error('Token verification failed');
+        }
+
+        // Try to fetch track data with new tokens
+        const trackData = await fetchSpotifyData();
+        
+        return res.status(200).json({ 
+          success: true,
+          trackData: trackData 
+        });
+      } catch (error) {
+        console.error('Token storage error:', error);
+        // Clean up any partially stored tokens
+        await Promise.all([
+          redis.del('spotify_access_token'),
+          redis.del('spotify_refresh_token'),
+          redis.del('spotify_expires_at')
+        ]);
+        
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to store authentication tokens'
+        });
+      }
     }
 
     if (path === '/api/spotify/current-track' && req.method === 'GET') {
@@ -226,20 +286,54 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
-      const access_token = await redis.get('spotify_access_token');
-      const refresh_token = await redis.get('spotify_refresh_token');
-      const trackData = await redis.get('current_track_data');
-      
-      console.log('Status check:', {
-        hasAccessToken: !!access_token,
-        hasRefreshToken: !!refresh_token,
-        hasTrackData: !!trackData
-      });
-      
-      return res.status(200).json({
-        authenticated: !!(access_token || refresh_token),
-        hasTrackData: !!trackData
-      });
+      try {
+        // Get all relevant data
+        const [access_token, refresh_token, expires_at, trackData] = await Promise.all([
+          redis.get('spotify_access_token'),
+          redis.get('spotify_refresh_token'),
+          redis.get('spotify_expires_at'),
+          redis.get('current_track_data')
+        ]);
+
+        const tokenExpired = expires_at && Date.now() >= (parseInt(expires_at) - 60000);
+        
+        console.log('Status check:', {
+          hasAccessToken: !!access_token,
+          hasRefreshToken: !!refresh_token,
+          tokenExpired,
+          hasTrackData: !!trackData,
+          expiresAt: expires_at ? new Date(parseInt(expires_at)).toISOString() : null
+        });
+
+        // Try to refresh token if needed
+        let authenticated = false;
+        if (refresh_token) {
+          if (!access_token || tokenExpired) {
+            try {
+              await refreshAccessToken();
+              authenticated = true;
+            } catch (refreshError) {
+              console.error('Auto-refresh failed during status check:', refreshError);
+              authenticated = false;
+            }
+          } else {
+            authenticated = true;
+          }
+        }
+        
+        return res.status(200).json({
+          authenticated: authenticated || !!(access_token && !tokenExpired),
+          hasTrackData: !!trackData,
+          needsRefresh: tokenExpired
+        });
+      } catch (error) {
+        console.error('Status check error:', error);
+        return res.status(200).json({
+          authenticated: false,
+          hasTrackData: false,
+          error: 'Failed to check authentication status'
+        });
+      }
     }
 
     if (path === '/api/spotify/refresh' && req.method === 'POST') {
