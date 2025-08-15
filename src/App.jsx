@@ -89,7 +89,7 @@ function App() {
         console.log('🎵 Admin setup triggered manually with Ctrl+Shift+S');
         setShowAdminSetup(true);
       }
-      // Also allow just pressing 'S' for easier testing
+      // Also allow just pressing 'S' for easier testing..
       if (e.key === 'S' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
         const target = e.target;
         // Only trigger if not typing in an input
