@@ -5,7 +5,7 @@ import Navbar from './components/Navbar'
 import Projects from './components/Projects'
 import MySpotifyPlayer from './components/MySpotifyPlayer'
 import SpotifyAdminSetup from './components/SpotifyAdminSetup'
-import { adminTokenStorage, getBackendAuthStatus } from './utils/spotify'
+import { getBackendAuthStatus } from './utils/spotify'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
@@ -34,15 +34,13 @@ function App() {
 
         try {
           const backendStatus = await getBackendAuthStatus();
-          const localAuth = adminTokenStorage.isAuthenticated();
           
           console.log('Auth check:', { 
             backendAuth: backendStatus.authenticated, 
-            localAuth, 
             hasTrackData: backendStatus.hasTrackData 
           });
           
-          if (!backendStatus.authenticated && !localAuth) {
+          if (!backendStatus.authenticated) {
             console.log('No authentication found, showing setup popup');
             setShowAdminSetup(true);
           }

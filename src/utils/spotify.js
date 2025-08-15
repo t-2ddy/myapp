@@ -1,5 +1,4 @@
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
-const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
 
 const REDIRECT_URI = 'https://t2ddy-personal.vercel.app';
 
@@ -7,8 +6,7 @@ const API_BASE_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3001/api' 
   : 'https://t2ddy-personal.vercel.app/api';
 
-// Spotify Web API endpoints
-const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+// Spotify Web API endpoints (only used on backend now)
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
@@ -28,49 +26,6 @@ export function getAuthorizationUrl() {
   });
 
   return `https://accounts.spotify.com/authorize?${params.toString()}`;
-}
-
-// Exchange authorization code for access token
-export async function getAccessToken(code) {
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: REDIRECT_URI,
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to exchange code for token');
-  }
-
-  return await response.json();
-}
-
-// Refresh access token
-export async function refreshAccessToken(refreshToken) {
-  const response = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${btoa(`${CLIENT_ID}:${CLIENT_SECRET}`)}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to refresh token');
-  }
-
-  return await response.json();
 }
 
 // Get currently playing track
@@ -108,97 +63,32 @@ export async function getRecentlyPlayed(accessToken) {
   return data.items[0]; // Return the most recent track
 }
 
-// Admin token storage (for your authentication only)
-export const adminTokenStorage = {
-  getTokens: () => {
-    const accessToken = localStorage.getItem('admin_spotify_access_token');
-    const refreshToken = localStorage.getItem('admin_spotify_refresh_token');
-    const expiresAt = localStorage.getItem('admin_spotify_expires_at');
-    
-    return { 
-      accessToken, 
-      refreshToken, 
-      expiresAt: expiresAt ? parseInt(expiresAt) : null 
-    };
-  },
-
-  setTokens: (tokenData) => {
-    localStorage.setItem('admin_spotify_access_token', tokenData.access_token);
-    if (tokenData.refresh_token) {
-      localStorage.setItem('admin_spotify_refresh_token', tokenData.refresh_token);
-    }
-    const expiresAt = Date.now() + (tokenData.expires_in * 1000);
-    localStorage.setItem('admin_spotify_expires_at', expiresAt.toString());
-  },
-
-  clearTokens: () => {
-    localStorage.removeItem('admin_spotify_access_token');
-    localStorage.removeItem('admin_spotify_refresh_token');
-    localStorage.removeItem('admin_spotify_expires_at');
-  },
-
-  isTokenValid: () => {
-    const { accessToken, expiresAt } = adminTokenStorage.getTokens();
-    return accessToken && expiresAt && Date.now() < (expiresAt - 60000); // 1 minute buffer
-  },
-
-  isAuthenticated: () => {
-    const { accessToken, refreshToken } = adminTokenStorage.getTokens();
-    return !!(accessToken || refreshToken);
-  }
-};
-
-// Get valid access token (handles refresh automatically)
-export async function getValidAccessToken() {
-  const { accessToken, refreshToken } = adminTokenStorage.getTokens();
-
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  if (adminTokenStorage.isTokenValid()) {
-    return accessToken;
-  }
-
-  // Token expired, refresh it
-  try {
-    const tokenData = await refreshAccessToken(refreshToken);
-    adminTokenStorage.setTokens(tokenData);
-    return tokenData.access_token;
-  } catch (error) {
-    // Refresh failed, clear tokens
-    adminTokenStorage.clearTokens();
-    throw new Error('Token refresh failed');
-  }
-}
-
 // NEW BACKEND API FUNCTIONS
 
-export async function storeTokensInBackend(tokenData) {
+// Exchange authorization code and store tokens in backend (server does both)
+export async function exchangeCodeInBackend(code) {
   try {
     const response = await fetch(`${API_BASE_URL}/spotify/tokens`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_in: tokenData.expires_in
-      })
+      body: JSON.stringify({ code })
     });
 
+    const json = await response.json().catch(() => ({ success: false }));
     if (!response.ok) {
-      console.error('Backend token storage failed:', response.status);
+      console.error('Backend code exchange failed:', json?.error || response.status);
       return { success: false };
     }
-
-    return await response.json();
+    return json;
   } catch (error) {
-    console.error('Failed to store tokens in backend:', error);
+    console.error('Failed to exchange code in backend:', error);
     return { success: false };
   }
 }
+
+// Deprecated: token storage is handled by the backend during code exchange
 
 export async function getCurrentTrackFromBackend() {
   try {

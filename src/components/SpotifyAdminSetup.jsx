@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
-  getAuthorizationUrl, 
-  getAccessToken, 
-  adminTokenStorage,
-  storeTokensInBackend
+  getAuthorizationUrl,
+  exchangeCodeInBackend
 } from '../utils/spotify';
 
 const SpotifyAdminSetup = ({ onSetupComplete }) => {
@@ -30,11 +28,11 @@ const SpotifyAdminSetup = ({ onSetupComplete }) => {
         setStatus('processing');
         
         try {
-          const tokenData = await getAccessToken(code);
-          
-          // Store tokens locally AND in backend
-          adminTokenStorage.setTokens(tokenData);
-          await storeTokensInBackend(tokenData);
+          // Exchange code and store in backend only
+          const result = await exchangeCodeInBackend(code);
+          if (!result?.success) {
+            throw new Error('Backend failed to exchange/store tokens');
+          }
           
           setStatus('success');
           
@@ -66,7 +64,7 @@ const SpotifyAdminSetup = ({ onSetupComplete }) => {
   };
 
   const handleReset = () => {
-    adminTokenStorage.clearTokens();
+    // Backend stores tokens; user can just re-run the flow
     setStatus('ready');
   };
 
@@ -164,14 +162,12 @@ const SpotifyAdminSetup = ({ onSetupComplete }) => {
             Connect Spotify
           </button>
           
-          {adminTokenStorage.isAuthenticated() && (
-            <button
-              onClick={handleReset}
-              className="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-            >
-              Reset Connection
-            </button>
-          )}
+          <button
+            onClick={handleReset}
+            className="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+          >
+            Reset Connection
+          </button>
         </div>
       </div>
     </div>
