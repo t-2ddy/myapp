@@ -1,5 +1,4 @@
-// Temporary: Use in-memory storage to debug the core flow
-// We'll add Redis back once the basic flow is working
+import { Redis } from '@upstash/redis';
 
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
@@ -7,16 +6,13 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-// Temporary in-memory storage (will reset on cold starts)
-let memoryStore = {
-  spotify_access_token: null,
-  spotify_refresh_token: null,
-  spotify_expires_at: null,
-  current_track_data: null
-};
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 async function refreshAccessToken() {
-  const refresh_token = memoryStore.spotify_refresh_token;
+  const refresh_token = await redis.get('spotify_refresh_token');
   
   if (!refresh_token) {
     throw new Error('No refresh token available');
@@ -40,19 +36,19 @@ async function refreshAccessToken() {
 
   const tokenData = await response.json();
   
-  memoryStore.spotify_access_token = tokenData.access_token;
+  await redis.set('spotify_access_token', tokenData.access_token);
   if (tokenData.refresh_token) {
-    memoryStore.spotify_refresh_token = tokenData.refresh_token;
+    await redis.set('spotify_refresh_token', tokenData.refresh_token);
   }
   const expires_at = Date.now() + (tokenData.expires_in * 1000);
-  memoryStore.spotify_expires_at = expires_at;
+  await redis.set('spotify_expires_at', expires_at);
   
   return tokenData.access_token;
 }
 
 async function getValidAccessToken() {
-  const access_token = memoryStore.spotify_access_token;
-  const expires_at = memoryStore.spotify_expires_at;
+  const access_token = await redis.get('spotify_access_token');
+  const expires_at = await redis.get('spotify_expires_at');
   
   if (!access_token) {
     throw new Error('No access token available');
@@ -82,7 +78,9 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        memoryStore.current_track_data = JSON.stringify(trackData);
+        await redis.set('current_track_data', JSON.stringify(trackData), {
+          ex: 60
+        });
         
         return trackData;
       }
@@ -101,7 +99,9 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        memoryStore.current_track_data = JSON.stringify(trackData);
+        await redis.set('current_track_data', JSON.stringify(trackData), {
+          ex: 60
+        });
         
         return trackData;
       }
@@ -138,10 +138,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // Extract path from request URL - Vercel provides the full path
   const path = req.url.includes('?') ? req.url.split('?')[0] : req.url;
   
-  // Debug logging
   console.log('API Debug:', {
     method: req.method,
     url: req.url,
@@ -153,10 +151,10 @@ export default async function handler(req, res) {
     if (path === '/api/spotify/tokens' && req.method === 'POST') {
       const { access_token, refresh_token, expires_in } = req.body;
       
-      memoryStore.spotify_access_token = access_token;
-      memoryStore.spotify_refresh_token = refresh_token;
+      await redis.set('spotify_access_token', access_token);
+      await redis.set('spotify_refresh_token', refresh_token);
       const expires_at = Date.now() + (expires_in * 1000);
-      memoryStore.spotify_expires_at = expires_at;
+      await redis.set('spotify_expires_at', expires_at);
 
       await fetchSpotifyData();
       
@@ -164,7 +162,7 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/spotify/current-track' && req.method === 'GET') {
-      let cachedData = memoryStore.current_track_data;
+      let cachedData = await redis.get('current_track_data');
       
       if (cachedData) {
         if (typeof cachedData === 'string') {
@@ -196,8 +194,8 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
-      const access_token = memoryStore.spotify_access_token;
-      const trackData = memoryStore.current_track_data;
+      const access_token = await redis.get('spotify_access_token');
+      const trackData = await redis.get('current_track_data');
       
       return res.status(200).json({
         authenticated: !!access_token,
