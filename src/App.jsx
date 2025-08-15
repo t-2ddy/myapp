@@ -5,7 +5,7 @@ import Navbar from './components/Navbar'
 import Projects from './components/Projects'
 import MySpotifyPlayer from './components/MySpotifyPlayer'
 import SpotifyAdminSetup from './components/SpotifyAdminSetup'
-import { getBackendAuthStatus } from './utils/spotify'
+import { getBackendAuthStatus, getAuthorizationUrl, exchangeCodeInBackend } from './utils/spotify'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
@@ -15,44 +15,51 @@ function App() {
   const [adminSetupKey, setAdminSetupKey] = useState(0)
 
   useEffect(() => {
-    const checkAdminSetup = async () => {
+    const checkAndAutoAuth = async () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const hasCallback = urlParams.get('code') || urlParams.get('error');
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        
-        if (hasCallback) {
-          console.log('Spotify callback detected, showing setup');
-          setShowAdminSetup(true);
+
+        // Handle callback silently in background, no popup
+        if (code) {
+          console.log('Spotify callback detected, exchanging code in background');
+          await exchangeCodeInBackend(code);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setAdminSetupKey(prev => prev + 1);
+          return;
+        }
+        if (error) {
+          console.error('Spotify auth error:', error);
+          window.history.replaceState({}, document.title, window.location.pathname);
           return;
         }
 
+        // Skip auto-redirect in local development
         if (isLocalhost) {
-          console.log('Localhost detected, skipping auto-popup (use Ctrl+Shift+S)');
+          console.log('Localhost detected, skipping auto-auth (use Ctrl+Shift+S)');
           return;
         }
 
+        // If not authenticated, auto-redirect to Spotify without showing popup
         try {
           const backendStatus = await getBackendAuthStatus();
-          
-          console.log('Auth check:', { 
-            backendAuth: backendStatus.authenticated, 
-            hasTrackData: backendStatus.hasTrackData 
-          });
-          
+          console.log('Auth check:', { backendAuth: backendStatus.authenticated, hasTrackData: backendStatus.hasTrackData });
           if (!backendStatus.authenticated) {
-            console.log('No authentication found, showing setup popup');
-            setShowAdminSetup(true);
+            const authUrl = getAuthorizationUrl();
+            console.log('Not authenticated, auto-redirecting to Spotify...');
+            window.location.href = authUrl;
           }
         } catch (authError) {
           console.error('Auth check failed:', authError);
         }
-      } catch (error) {
-        console.error('Error in admin setup check:', error);
+      } catch (e) {
+        console.error('Error in auto-auth flow:', e);
       }
     };
-    
-    checkAdminSetup();
+
+    checkAndAutoAuth();
   }, []);
 
   const handleSetupComplete = () => {
