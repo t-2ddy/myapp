@@ -135,11 +135,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
-  const path = pathname.replace('/api', '');
+  // Extract path from URL for Vercel functions
+  const url = new URL(req.url, 'https://example.com');
+  const path = url.pathname;
 
   try {
-    if (path === '/spotify/tokens' && req.method === 'POST') {
+    if (path === '/api/spotify/tokens' && req.method === 'POST') {
       const { access_token, refresh_token, expires_in } = req.body;
       
       await redis.set('spotify_access_token', access_token);
@@ -152,7 +153,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    if (path === '/spotify/current-track' && req.method === 'GET') {
+    if (path === '/api/spotify/current-track' && req.method === 'GET') {
       let cachedData = await redis.get('current_track_data');
       
       if (cachedData) {
@@ -184,7 +185,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (path === '/spotify/status' && req.method === 'GET') {
+    if (path === '/api/spotify/status' && req.method === 'GET') {
       const access_token = await redis.get('spotify_access_token');
       const trackData = await redis.get('current_track_data');
       
@@ -194,7 +195,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (path === '/spotify/refresh' && req.method === 'POST') {
+    if (path === '/api/spotify/refresh' && req.method === 'POST') {
       const freshData = await fetchSpotifyData();
       return res.status(200).json({ 
         success: true, 
@@ -202,7 +203,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (path === '/health' && req.method === 'GET') {
+    if (path === '/api/health' && req.method === 'GET') {
       return res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString() 
