@@ -145,7 +145,7 @@ const projects = [
     {
     title: "Epic Seven Shop Automation Tool",
     technologies: "Python, Tkinter, OpenCV, PyAutoGUI, Win32 API, Computer Vision",
-    description: "• Desktop automation tool for Epic Seven's in-game shop\n• Uses computer vision with OpenCV for item detection and template matching\n• Built custom GUI with Tkinter for user-friendly controls and real-time statistics\n• Implements Win32 API for precise window handling and multi-resolution support\n• Features budget controls, emergency stops, and automatic bookmark purchasing",
+    description: "• Desktop automation tool for Epic Seven's in-game shop\n• Uses computer vision with OpenCV for item detection\n• Built custom GUI with Tkinter for user-friendly controls and tracking\n• Features budget controls, emergency stops, and automatic bookmark purchasing",
     link: "https://github.com/t-2ddy/Epic-Seven-Auto-Shop-Refresher",
     images: [
       e7app,
@@ -248,7 +248,6 @@ const projects = [
                           loop
                           autoPlay
                         />
-                        {/* Play icon overlay */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-6">
                             <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
