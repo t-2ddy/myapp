@@ -10,6 +10,8 @@ import hhAuth3    from '/images/hh_auth3.png'
 import hhHome     from '/images/hh_home.png'
 import hhTowa     from '/images/hh_towa.png'
 import hhMessages from '/images/hh_messages.png'
+import e7app from '/images/e7app.png'
+import e7appDemo from '/video/e7appDemo.mp4'
 
 const Projects = () => {
   const projectScrollRefs = useRef([]);
@@ -20,6 +22,11 @@ const Projects = () => {
 
   const [hoveredProjects, setHoveredProjects] = useState(new Set());
   const [animatedProjects, setAnimatedProjects] = useState(new Set());
+
+  // Helper function to check if a file is a video
+  const isVideo = (src) => {
+    return src.endsWith('.mp4') || src.endsWith('.webm') || src.endsWith('.mov');
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,6 +142,16 @@ const Projects = () => {
   };
 
 const projects = [
+    {
+    title: "Epic Seven Shop Automation Tool",
+    technologies: "Python, Tkinter, OpenCV, PyAutoGUI, Win32 API, Computer Vision",
+    description: "• Desktop automation tool for Epic Seven's in-game shop\n• Uses computer vision with OpenCV for item detection and template matching\n• Built custom GUI with Tkinter for user-friendly controls and real-time statistics\n• Implements Win32 API for precise window handling and multi-resolution support\n• Features budget controls, emergency stops, and automatic bookmark purchasing",
+    link: "https://github.com/t-2ddy/Epic-Seven-Auto-Shop-Refresher",
+    images: [
+      e7app,
+      e7appDemo,
+    ]
+  },
   {
     title: "Overwatch Hero Guide Web Application",
     technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
@@ -221,13 +238,31 @@ const projects = [
                   flex-shrink-0 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105"
                   onClick={() => openGallery(project, i)}
                 >
-                  <div className="flex rounded-2xl">
-                  <img
-                    src={src}
-                    alt={`${project.title} screenshot ${i + 1}`}
-                    className="w-80 h-44 object-cover object-top select-none rounded-lg pointer-events-none justify-center mt-6"
-                    draggable={false}
-                  />
+                  <div className="flex rounded-2xl relative">
+                    {isVideo(src) ? (
+                      <>
+                        <video
+                          src={src}
+                          className="w-80 h-44 object-cover object-top select-none rounded-lg pointer-events-none justify-center mt-6"
+                          muted
+                          loop
+                          autoPlay
+                        />
+                        {/* Play icon overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-6">
+                            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                      </>
+                    ) : (
+                      <img
+                        src={src}
+                        alt={`${project.title} screenshot ${i + 1}`}
+                        className="w-80 h-44 object-cover object-top select-none rounded-lg pointer-events-none justify-center mt-6"
+                        draggable={false}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -262,15 +297,30 @@ const projects = [
             </button>
           )}
           <div className="flex flex-col items-center justify-center">
-            <img
-              src={currentProject.images[currentImageIndex]}
-              alt={`${currentProject.title} screenshot ${currentImageIndex + 1}`}
-              className={`object-contain rounded-xl ${
-                currentProject.title.includes("Hololive") 
-                  ? "max-w-xs sm:max-w-md max-h-[70vh]" 
-                  : "max-w-full max-h-[80vh]"
-              }`}
-            />
+            {isVideo(currentProject.images[currentImageIndex]) ? (
+              <video
+                src={currentProject.images[currentImageIndex]}
+                className={`object-contain rounded-xl ${
+                  currentProject.title.includes("Hololive") 
+                    ? "max-w-xs sm:max-w-md max-h-[70vh]" 
+                    : "max-w-full max-h-[80vh]"
+                }`}
+                controls
+                autoPlay
+                loop
+                muted
+              />
+            ) : (
+              <img
+                src={currentProject.images[currentImageIndex]}
+                alt={`${currentProject.title} screenshot ${currentImageIndex + 1}`}
+                className={`object-contain rounded-xl ${
+                  currentProject.title.includes("Hololive") 
+                    ? "max-w-xs sm:max-w-md max-h-[70vh]" 
+                    : "max-w-full max-h-[80vh]"
+                }`}
+              />
+            )}
           </div>
           {currentProject.images && currentProject.images.length > 1 && (
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-zinc-900 bg-opacity-50 rounded-lg p-2">
@@ -278,17 +328,32 @@ const projects = [
                 <button
                   key={i}
                   onClick={() => goToImage(i)}
-                  className={`w-16 h-10 rounded overflow-hidden border-2 transition-all ${
+                  className={`w-16 h-10 rounded overflow-hidden border-2 transition-all relative ${
                     i === currentImageIndex
                       ? 'border-purple-400 scale-110'
                       : 'border-neutral-600 hover:border-purple-300'
                   }`}
                 >
-                  <img
-                    src={src}
-                    alt={`Thumbnail ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  {isVideo(src) ? (
+                    <>
+                      <video
+                        src={src}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </>
+                  ) : (
+                    <img
+                      src={src}
+                      alt={`Thumbnail ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </button>
               ))}
             </div>
