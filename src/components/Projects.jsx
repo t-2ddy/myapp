@@ -20,8 +20,8 @@ const Projects = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentImage, setImagesClickable] = useState(null);
 
-  const [hoveredProjects, setHoveredProjects] = useState(new Set());
   const [animatedProjects, setAnimatedProjects] = useState(new Set());
+  const projectContainerRefs = useRef([]);
 
   // Helper function to check if a file is a video
   const isVideo = (src) => {
@@ -66,45 +66,58 @@ const Projects = () => {
       }
     });
 
-    return () => clearTimeout(timer);
+    // Set up Intersection Observer for scroll-based animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const index = parseInt(entry.target.dataset.projectIndex);
+          // Only trigger animation if this project hasn't been animated yet
+          if (!animatedProjects.has(index)) {
+            triggerBumpAnimation(index);
+            // Stop observing this element after animation is triggered
+            observer.unobserve(entry.target);
+          }
+        }
+      });
+    }, {
+      // Trigger when the bottom of the container reaches the middle of the screen
+      rootMargin: '0px 0px -50% 0px',
+      threshold: 0
+    });
+
+    // Observe each project container
+    projectContainerRefs.current.forEach((ref, index) => {
+      if (ref) {
+        ref.dataset.projectIndex = index;
+        observer.observe(ref);
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
   }, []);
 
-  const handleMouseEnter = (index) => {
-    setHoveredProjects(prev => new Set(prev).add(index));
-    
-    if (!animatedProjects.has(index)) {
-      const projectElement = projectScrollRefs.current[index];
-      if (projectElement) {
-        const currentTransform = projectElement.style.transform || '';
-        const currentX = currentTransform.match(/translateX\(([^)]+)\)/);
-        const xValue = currentX ? parseFloat(currentX[1]) : 0;
+  const triggerBumpAnimation = (index) => {
+    const projectElement = projectScrollRefs.current[index];
+    if (projectElement) {
+      const currentTransform = projectElement.style.transform || '';
+      const currentX = currentTransform.match(/translateX\(([^)]+)\)/);
+      const xValue = currentX ? parseFloat(currentX[1]) : 0;
+      
+      if (Math.abs(xValue) < 5) {
+        animate(projectElement, {
+          x: [0, -150, 0],
+          ease: 'inOutQuad',
+          delay: 100,
+          duration: 900,
+        });
         
-        if (Math.abs(xValue) < 5) {
-          animate(projectElement, {
-            x: [0, -100, 0],
-            ease: 'inOutQuad',
-            delay: 100,
-            duration: 700,
-          });
-          
-          setAnimatedProjects(prev => new Set(prev).add(index));
-        }
+        // Mark this project as animated so it won't animate again
+        setAnimatedProjects(prev => new Set(prev).add(index));
       }
     }
-  };
-
-  const handleMouseLeave = (index) => {
-    setHoveredProjects(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(index);
-      return newSet;
-    });
-    
-    setAnimatedProjects(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(index);
-      return newSet;
-    });
   };
 
   const openGallery = (project, imageIndex) => {
@@ -164,9 +177,9 @@ const projects = [
     ]
   },
   {
-    title: "Hololive-Themed Productivity Mobile Application",
+    title: "Tow.ai",
     technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
-    description: "• My jump into mobile development - a productivity app themed around the character in my ASCII banner\n• Built with React Native/Expo and TypeScript\n• Uses Appwrite for auth and user data\n• Features a custom API for the themed chatbot",
+    description: "• My jump into mobile development - a productivity app themed around the character in my ASCII banner\n• Built with React Native/Expo and TypeScript\n• Uses Appwrite for auth and user data\n• Features a custom API for the ai agent to support you thoughout the day",
     images: [
       hhAuth1,
       hhAuth2,
@@ -185,12 +198,13 @@ const projects = [
           projects
           
         </h2>
-        <h2 className="text-md justify-center whitespace-normal ml-0.5 mt-2.5 sm:text-transparent text-violet-200 text-left">
-          -- drag points to preview projects
-        </h2>
       </div>
       {projects.map((project, index) => (
-        <div key={index} className='info-ani'>
+        <div 
+          key={index} 
+          className='info-ani'
+          ref={(el) => projectContainerRefs.current[index] = el}
+        >
           <h3 className='text-2xl py-3 text-purple-300'>
             {project.link ? (
               <a
@@ -213,8 +227,6 @@ const projects = [
           
           <div 
             className="relative w-full overflow-hidden"
-            onMouseEnter={() => handleMouseEnter(index)}
-            onMouseLeave={() => handleMouseLeave(index)}
           >
             <div 
               ref={(el) => projectScrollRefs.current[index] = el}
