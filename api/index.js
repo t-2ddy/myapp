@@ -6,77 +6,51 @@ const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-// Provide a resilient storage layer using Supabase Storage, with in-memory fallback
-let redis; // adapter interface: get/set/del
-let storageLabel = '[Storage]';
-
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const supabaseBucket = process.env.SUPABASE_BUCKET_NAME || 'spotify-tokens';
 
-if (supabaseUrl && supabaseServiceKey) {
-  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
-  let bucketEnsured = false;
-  const ensureBucket = async () => {
-    if (bucketEnsured) return;
-    try {
-      const { error } = await supabase.storage.createBucket(supabaseBucket, { public: false });
-      if (error && !String(error?.message || '').toLowerCase().includes('exists')) {
-        console.warn('[Supabase] createBucket warning:', error.message);
-      }
-    } catch (e) {
-      // ignore; bucket may already exist
-    } finally {
-      bucketEnsured = true;
-    }
-  };
+const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
+let bucketEnsured = false;
 
-  const toPath = (key) => `${key}.json`;
+const ensureBucket = async () => {
+  if (bucketEnsured) return;
+  try {
+    const { error } = await supabase.storage.createBucket(supabaseBucket, { public: false });
+    if (error && !String(error?.message || '').toLowerCase().includes('exists')) {
+      console.warn('[Supabase] createBucket warning:', error.message);
+    }
+  } catch (e) {
+  } finally {
+    bucketEnsured = true;
+  }
+};
 
-  redis = {
-    async get(key) {
-      await ensureBucket();
-      const { data, error } = await supabase.storage.from(supabaseBucket).download(toPath(key));
-      if (error) return null;
-      const buffer = Buffer.from(await data.arrayBuffer());
-      const text = buffer.toString('utf8');
-      return text;
-    },
-    async set(key, value /*, options*/) {
-      await ensureBucket();
-      const body = new Blob([typeof value === 'string' ? value : JSON.stringify(value)], { type: 'application/json' });
-      const { error } = await supabase.storage.from(supabaseBucket).upload(toPath(key), body, { upsert: true, contentType: 'application/json' });
-      if (error) throw error;
-      return 'OK';
-    },
-    async del(key) {
-      await ensureBucket();
-      const { error } = await supabase.storage.from(supabaseBucket).remove([toPath(key)]);
-      if (error) return 0;
-      return 1;
-    }
-  };
-  storageLabel = '[Storage:Supabase]';
-  console.log(`${storageLabel} Using Supabase Storage bucket '${supabaseBucket}'`);
-} else {
-  // Fallback to in-memory store
-  const mem = new Map();
-  redis = {
-    async get(key) {
-      const v = mem.get(key);
-      return v === undefined ? null : v;
-    },
-    async set(key, value) {
-      mem.set(key, typeof value === 'string' ? value : JSON.stringify(value));
-      return 'OK';
-    },
-    async del(key) {
-      return mem.delete(key) ? 1 : 0;
-    }
-  };
-  storageLabel = '[Storage:Memory]';
-  console.warn(`${storageLabel} SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set. Using in-memory (non-persistent).`);
-}
+const toPath = (key) => `${key}.json`;
+
+const storage = {
+  async get(key) {
+    await ensureBucket();
+    const { data, error } = await supabase.storage.from(supabaseBucket).download(toPath(key));
+    if (error) return null;
+    const buffer = Buffer.from(await data.arrayBuffer());
+    const text = buffer.toString('utf8');
+    return text;
+  },
+  async set(key, value) {
+    await ensureBucket();
+    const body = new Blob([typeof value === 'string' ? value : JSON.stringify(value)], { type: 'application/json' });
+    const { error } = await supabase.storage.from(supabaseBucket).upload(toPath(key), body, { upsert: true, contentType: 'application/json' });
+    if (error) throw error;
+    return 'OK';
+  },
+  async del(key) {
+    await ensureBucket();
+    const { error } = await supabase.storage.from(supabaseBucket).remove([toPath(key)]);
+    if (error) return 0;
+    return 1;
+  }
+};
 
 async function exchangeCodeForToken(code) {
   console.log('Exchanging code for token...');
@@ -108,13 +82,12 @@ async function exchangeCodeForToken(code) {
 }
 
 async function refreshAccessToken() {
-  const refresh_token = await redis.get('spotify_refresh_token');
+  const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN || await storage.get('spotify_refresh_token');
   
   if (!refresh_token) {
-    console.log('No refresh token available in Redis');
+    console.log('No refresh token available');
     throw new Error('No refresh token available');
   }
-
   console.log('Refreshing access token...');
   
   try {
@@ -129,7 +102,6 @@ async function refreshAccessToken() {
         refresh_token: refresh_token,
       })
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Token refresh failed:', {
@@ -139,32 +111,25 @@ async function refreshAccessToken() {
       });
       throw new Error(`Failed to refresh token: ${errorText}`);
     }
-
     const tokenData = await response.json();
-    console.log('REFRESH TOKEN:', tokenData.refresh_token);
     
-    // Store tokens atomically
     const storePromises = [
-      redis.set('spotify_access_token', tokenData.access_token),
-      redis.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
+      storage.set('spotify_access_token', tokenData.access_token),
+      storage.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
     ];
-
-    // Only update refresh token if we got a new one
     if (tokenData.refresh_token) {
-      storePromises.push(redis.set('spotify_refresh_token', tokenData.refresh_token));
+      storePromises.push(storage.set('spotify_refresh_token', tokenData.refresh_token));
     }
-
     await Promise.all(storePromises);
     
     console.log('Token refreshed and stored successfully');
     return tokenData.access_token;
   } catch (error) {
     console.error('Token refresh error:', error);
-    // If refresh fails, clear tokens to force re-authentication
     await Promise.all([
-      redis.del('spotify_access_token'),
-      redis.del('spotify_refresh_token'),
-      redis.del('spotify_expires_at')
+      storage.del('spotify_access_token'),
+      storage.del('spotify_refresh_token'),
+      storage.del('spotify_expires_at')
     ]);
     throw error;
   }
@@ -172,43 +137,34 @@ async function refreshAccessToken() {
 
 async function getValidAccessToken() {
   try {
-    const access_token = await redis.get('spotify_access_token');
-    const expires_at = parseInt(await redis.get('spotify_expires_at'));
-    const refresh_token = await redis.get('spotify_refresh_token');
+    const access_token = await storage.get('spotify_access_token');
+    const expires_at = parseInt(await storage.get('spotify_expires_at'));
+    const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN || await storage.get('spotify_refresh_token');
     
     console.log('Token check:', {
       hasAccessToken: !!access_token,
       hasRefreshToken: !!refresh_token,
       expiresAt: expires_at,
       now: Date.now(),
-      expired: expires_at ? Date.now() >= (expires_at - 60000) : true
+      expired: expires_at ? Date.now() >= (expires_at - 60000) : true,
+      usingEnvVar: !!process.env.SPOTIFY_REFRESH_TOKEN
     });
-
-    // If we have no access token but have refresh token, try refresh
     if (!access_token && refresh_token) {
       console.log('No access token found but have refresh token, attempting refresh...');
       return await refreshAccessToken();
     }
-
-    // If we have no tokens at all, we can't proceed
     if (!access_token && !refresh_token) {
       console.log('No tokens available, authentication required');
       throw new Error('Authentication required');
     }
-
-    // If token is expired and we have refresh token, refresh it
     if (expires_at && Date.now() >= (expires_at - 60000) && refresh_token) {
       console.log('Token expired, refreshing...');
       return await refreshAccessToken();
     }
-
-    // If we have a valid access token, use it
     if (access_token && (!expires_at || Date.now() < (expires_at - 60000))) {
       console.log('Using existing valid access token');
       return access_token;
     }
-
-    // If we get here something is wrong with our token state
     throw new Error('Invalid token state');
   } catch (error) {
     console.error('Error in getValidAccessToken:', error);
@@ -234,7 +190,7 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        await redis.set('current_track_data', JSON.stringify(trackData), {
+        await storage.set('current_track_data', JSON.stringify(trackData), {
           ex: 60
         });
         
@@ -257,7 +213,7 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        await redis.set('current_track_data', JSON.stringify(trackData), {
+        await storage.set('current_track_data', JSON.stringify(trackData), {
           ex: 60
         });
         
@@ -327,34 +283,30 @@ export default async function handler(req, res) {
       try {
         console.log('Starting token exchange process...');
         
-        // Exchange the code for tokens
         const tokenData = await exchangeCodeForToken(code);
         
         if (!tokenData.access_token || !tokenData.refresh_token) {
           throw new Error('Invalid token data received from Spotify');
         }
         
-        // Store tokens atomically
         const storePromises = [
-          redis.set('spotify_access_token', tokenData.access_token),
-          redis.set('spotify_refresh_token', tokenData.refresh_token),
-          redis.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
+          storage.set('spotify_access_token', tokenData.access_token),
+          storage.set('spotify_refresh_token', tokenData.refresh_token),
+          storage.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
         ];
         
         await Promise.all(storePromises);
         console.log('Tokens stored successfully');
 
-        // Verify tokens were stored
         const [storedAccessToken, storedRefreshToken] = await Promise.all([
-          redis.get('spotify_access_token'),
-          redis.get('spotify_refresh_token')
+          storage.get('spotify_access_token'),
+          storage.get('spotify_refresh_token')
         ]);
         
         if (!storedAccessToken || !storedRefreshToken) {
           throw new Error('Token verification failed');
         }
 
-        // Try to fetch track data with new tokens
         const trackData = await fetchSpotifyData();
         
         return res.status(200).json({ 
@@ -363,11 +315,10 @@ export default async function handler(req, res) {
         });
       } catch (error) {
         console.error('Token exchange/storage error:', error);
-        // Clean up any partially stored tokens
         await Promise.all([
-          redis.del('spotify_access_token'),
-          redis.del('spotify_refresh_token'),
-          redis.del('spotify_expires_at')
+          storage.del('spotify_access_token'),
+          storage.del('spotify_refresh_token'),
+          storage.del('spotify_expires_at')
         ]);
         
         return res.status(500).json({
@@ -378,7 +329,7 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/spotify/current-track' && req.method === 'GET') {
-      let cachedData = await redis.get('current_track_data');
+      let cachedData = await storage.get('current_track_data');
       
       if (cachedData) {
         if (typeof cachedData === 'string') {
@@ -414,12 +365,11 @@ export default async function handler(req, res) {
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
       try {
-        // Get all relevant data
         const [access_token, refresh_token, expires_at, trackData] = await Promise.all([
-          redis.get('spotify_access_token'),
-          redis.get('spotify_refresh_token'),
-          redis.get('spotify_expires_at'),
-          redis.get('current_track_data')
+          storage.get('spotify_access_token'),
+          storage.get('spotify_refresh_token'),
+          storage.get('spotify_expires_at'),
+          storage.get('current_track_data')
         ]);
 
         const tokenExpired = expires_at && Date.now() >= (parseInt(expires_at) - 60000);
@@ -432,7 +382,6 @@ export default async function handler(req, res) {
           expiresAt: expires_at ? new Date(parseInt(expires_at)).toISOString() : null
         });
 
-        // Try to refresh token if needed
         let authenticated = false;
         if (refresh_token) {
           if (!access_token || tokenExpired) {
@@ -472,9 +421,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Debug endpoint to get refresh token
     if (path === '/api/get-token' && req.method === 'GET') {
-      const refresh_token = await redis.get('spotify_refresh_token');
+      const refresh_token = await storage.get('spotify_refresh_token');
       return res.status(200).json({
         token: refresh_token,
         hasToken: !!refresh_token
@@ -485,7 +433,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        redis: !!redis
+        storage: !!storage
       });
     }
 
