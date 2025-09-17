@@ -82,13 +82,17 @@ async function exchangeCodeForToken(code) {
 }
 
 async function refreshAccessToken() {
-  const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN || await storage.get('spotify_refresh_token');
+  let refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+  
+  if (!refresh_token) {
+    refresh_token = await storage.get('spotify_refresh_token');
+  }
   
   if (!refresh_token) {
     console.log('No refresh token available');
     throw new Error('No refresh token available');
   }
-  console.log('Refreshing access token...');
+  console.log('Refreshing access token using:', process.env.SPOTIFY_REFRESH_TOKEN ? 'environment variable' : 'storage');
   
   try {
     const response = await fetch(TOKEN_URL, {
@@ -131,6 +135,48 @@ async function refreshAccessToken() {
       storage.del('spotify_refresh_token'),
       storage.del('spotify_expires_at')
     ]);
+    throw error;
+  }
+}
+
+async function getValidAccessToken() {
+  try {
+    const access_token = await storage.get('spotify_access_token');
+    const expires_at = parseInt(await storage.get('spotify_expires_at'));
+    
+    let refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+    if (!refresh_token) {
+      refresh_token = await storage.get('spotify_refresh_token');
+    }
+    
+    console.log('Token check:', {
+      hasAccessToken: !!access_token,
+      hasRefreshToken: !!refresh_token,
+      expiresAt: expires_at,
+      now: Date.now(),
+      expired: expires_at ? Date.now() >= (expires_at - 60000) : true,
+      usingEnvVar: !!process.env.SPOTIFY_REFRESH_TOKEN
+    });
+    
+    if (!access_token && refresh_token) {
+      console.log('No access token found but have refresh token, attempting refresh...');
+      return await refreshAccessToken();
+    }
+    if (!access_token && !refresh_token) {
+      console.log('No tokens available, authentication required');
+      throw new Error('Authentication required');
+    }
+    if (expires_at && Date.now() >= (expires_at - 60000) && refresh_token) {
+      console.log('Token expired, refreshing...');
+      return await refreshAccessToken();
+    }
+    if (access_token && (!expires_at || Date.now() < (expires_at - 60000))) {
+      console.log('Using existing valid access token');
+      return access_token;
+    }
+    throw new Error('Invalid token state');
+  } catch (error) {
+    console.error('Error in getValidAccessToken:', error);
     throw error;
   }
 }
