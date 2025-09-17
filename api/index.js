@@ -1,55 +1,13 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
 const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
 const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const supabaseBucket = process.env.SUPABASE_BUCKET_NAME || 'spotify-tokens';
-
-const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
-let bucketEnsured = false;
-
-const ensureBucket = async () => {
-  if (bucketEnsured) return;
-  try {
-    const { error } = await supabase.storage.createBucket(supabaseBucket, { public: false });
-    if (error && !String(error?.message || '').toLowerCase().includes('exists')) {
-      console.warn('[Supabase] createBucket warning:', error.message);
-    }
-  } catch (e) {
-  } finally {
-    bucketEnsured = true;
-  }
-};
-
-const toPath = (key) => `${key}.json`;
-
-const storage = {
-  async get(key) {
-    await ensureBucket();
-    const { data, error } = await supabase.storage.from(supabaseBucket).download(toPath(key));
-    if (error) return null;
-    const buffer = Buffer.from(await data.arrayBuffer());
-    const text = buffer.toString('utf8');
-    return text;
-  },
-  async set(key, value) {
-    await ensureBucket();
-    const body = new Blob([typeof value === 'string' ? value : JSON.stringify(value)], { type: 'application/json' });
-    const { error } = await supabase.storage.from(supabaseBucket).upload(toPath(key), body, { upsert: true, contentType: 'application/json' });
-    if (error) throw error;
-    return 'OK';
-  },
-  async del(key) {
-    await ensureBucket();
-    const { error } = await supabase.storage.from(supabaseBucket).remove([toPath(key)]);
-    if (error) return 0;
-    return 1;
-  }
+// In-memory cache for access tokens (will reset on function restart)
+let tokenCache = {
+  access_token: null,
+  expires_at: null
 };
 
 async function exchangeCodeForToken(code) {
@@ -82,17 +40,14 @@ async function exchangeCodeForToken(code) {
 }
 
 async function refreshAccessToken() {
-  let refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+  const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
   
   if (!refresh_token) {
-    refresh_token = await storage.get('spotify_refresh_token');
+    console.log('No refresh token available in environment variables');
+    throw new Error('No refresh token available - Please set SPOTIFY_REFRESH_TOKEN environment variable');
   }
   
-  if (!refresh_token) {
-    console.log('No refresh token available');
-    throw new Error('No refresh token available');
-  }
-  console.log('Refreshing access token using:', process.env.SPOTIFY_REFRESH_TOKEN ? 'environment variable' : 'storage');
+  console.log('Refreshing access token using environment variable...');
   
   try {
     const response = await fetch(TOKEN_URL, {
@@ -106,6 +61,7 @@ async function refreshAccessToken() {
         refresh_token: refresh_token,
       })
     });
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Token refresh failed:', {
@@ -115,103 +71,51 @@ async function refreshAccessToken() {
       });
       throw new Error(`Failed to refresh token: ${errorText}`);
     }
+    
     const tokenData = await response.json();
     
-    const storePromises = [
-      storage.set('spotify_access_token', tokenData.access_token),
-      storage.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
-    ];
-    if (tokenData.refresh_token) {
-      storePromises.push(storage.set('spotify_refresh_token', tokenData.refresh_token));
-    }
-    await Promise.all(storePromises);
+    // Cache the new access token in memory
+    tokenCache.access_token = tokenData.access_token;
+    tokenCache.expires_at = Date.now() + (tokenData.expires_in * 1000);
     
-    console.log('Token refreshed and stored successfully');
+    console.log('Token refreshed and cached successfully');
     return tokenData.access_token;
   } catch (error) {
     console.error('Token refresh error:', error);
-    await Promise.all([
-      storage.del('spotify_access_token'),
-      storage.del('spotify_refresh_token'),
-      storage.del('spotify_expires_at')
-    ]);
+    // Clear cache on error
+    tokenCache.access_token = null;
+    tokenCache.expires_at = null;
     throw error;
   }
 }
 
 async function getValidAccessToken() {
   try {
-    const access_token = await storage.get('spotify_access_token');
-    const expires_at = parseInt(await storage.get('spotify_expires_at'));
+    const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
     
-    let refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+    console.log('Token check:', {
+      hasCachedToken: !!tokenCache.access_token,
+      hasRefreshToken: !!refresh_token,
+      expiresAt: tokenCache.expires_at,
+      now: Date.now(),
+      expired: tokenCache.expires_at ? Date.now() >= (tokenCache.expires_at - 60000) : true
+    });
+    
     if (!refresh_token) {
-      refresh_token = await storage.get('spotify_refresh_token');
+      console.log('No refresh token available in environment variables');
+      throw new Error('Authentication required - SPOTIFY_REFRESH_TOKEN not set');
     }
     
-    console.log('Token check:', {
-      hasAccessToken: !!access_token,
-      hasRefreshToken: !!refresh_token,
-      expiresAt: expires_at,
-      now: Date.now(),
-      expired: expires_at ? Date.now() >= (expires_at - 60000) : true,
-      usingEnvVar: !!process.env.SPOTIFY_REFRESH_TOKEN
-    });
+    // Check if we have a valid cached token
+    if (tokenCache.access_token && tokenCache.expires_at && Date.now() < (tokenCache.expires_at - 60000)) {
+      console.log('Using cached access token');
+      return tokenCache.access_token;
+    }
     
-    if (!access_token && refresh_token) {
-      console.log('No access token found but have refresh token, attempting refresh...');
-      return await refreshAccessToken();
-    }
-    if (!access_token && !refresh_token) {
-      console.log('No tokens available, authentication required');
-      throw new Error('Authentication required');
-    }
-    if (expires_at && Date.now() >= (expires_at - 60000) && refresh_token) {
-      console.log('Token expired, refreshing...');
-      return await refreshAccessToken();
-    }
-    if (access_token && (!expires_at || Date.now() < (expires_at - 60000))) {
-      console.log('Using existing valid access token');
-      return access_token;
-    }
-    throw new Error('Invalid token state');
-  } catch (error) {
-    console.error('Error in getValidAccessToken:', error);
-    throw error;
-  }
-}
-
-async function getValidAccessToken() {
-  try {
-    const access_token = await storage.get('spotify_access_token');
-    const expires_at = parseInt(await storage.get('spotify_expires_at'));
-    const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN || await storage.get('spotify_refresh_token');
+    // Token is expired or doesn't exist, refresh it
+    console.log('Token expired or missing, refreshing...');
+    return await refreshAccessToken();
     
-    console.log('Token check:', {
-      hasAccessToken: !!access_token,
-      hasRefreshToken: !!refresh_token,
-      expiresAt: expires_at,
-      now: Date.now(),
-      expired: expires_at ? Date.now() >= (expires_at - 60000) : true,
-      usingEnvVar: !!process.env.SPOTIFY_REFRESH_TOKEN
-    });
-    if (!access_token && refresh_token) {
-      console.log('No access token found but have refresh token, attempting refresh...');
-      return await refreshAccessToken();
-    }
-    if (!access_token && !refresh_token) {
-      console.log('No tokens available, authentication required');
-      throw new Error('Authentication required');
-    }
-    if (expires_at && Date.now() >= (expires_at - 60000) && refresh_token) {
-      console.log('Token expired, refreshing...');
-      return await refreshAccessToken();
-    }
-    if (access_token && (!expires_at || Date.now() < (expires_at - 60000))) {
-      console.log('Using existing valid access token');
-      return access_token;
-    }
-    throw new Error('Invalid token state');
   } catch (error) {
     console.error('Error in getValidAccessToken:', error);
     throw error;
@@ -236,10 +140,6 @@ async function fetchSpotifyData() {
           lastUpdated: Date.now()
         };
         
-        await storage.set('current_track_data', JSON.stringify(trackData), {
-          ex: 60
-        });
-        
         console.log('Currently playing:', currentData.item.name);
         return trackData;
       }
@@ -258,10 +158,6 @@ async function fetchSpotifyData() {
           isPlaying: false,
           lastUpdated: Date.now()
         };
-        
-        await storage.set('current_track_data', JSON.stringify(trackData), {
-          ex: 60
-        });
         
         console.log('Last played:', recentData.items[0].track.name);
         return trackData;
@@ -335,72 +231,35 @@ export default async function handler(req, res) {
           throw new Error('Invalid token data received from Spotify');
         }
         
-        const storePromises = [
-          storage.set('spotify_access_token', tokenData.access_token),
-          storage.set('spotify_refresh_token', tokenData.refresh_token),
-          storage.set('spotify_expires_at', Date.now() + (tokenData.expires_in * 1000))
-        ];
+        // Display the refresh token for manual addition to environment variables
+        console.log('='.repeat(50));
+        console.log('IMPORTANT: Add this to your Vercel environment variables:');
+        console.log('Key: SPOTIFY_REFRESH_TOKEN');
+        console.log('Value:', tokenData.refresh_token);
+        console.log('='.repeat(50));
         
-        await Promise.all(storePromises);
-        console.log('Tokens stored successfully');
-
-        const [storedAccessToken, storedRefreshToken] = await Promise.all([
-          storage.get('spotify_access_token'),
-          storage.get('spotify_refresh_token')
-        ]);
-        
-        if (!storedAccessToken || !storedRefreshToken) {
-          throw new Error('Token verification failed');
-        }
+        // Cache the access token
+        tokenCache.access_token = tokenData.access_token;
+        tokenCache.expires_at = Date.now() + (tokenData.expires_in * 1000);
 
         const trackData = await fetchSpotifyData();
         
         return res.status(200).json({ 
           success: true,
-          trackData: trackData 
+          trackData: trackData,
+          message: 'Please add the refresh token from the server logs to your Vercel environment variables'
         });
       } catch (error) {
-        console.error('Token exchange/storage error:', error);
-        await Promise.all([
-          storage.del('spotify_access_token'),
-          storage.del('spotify_refresh_token'),
-          storage.del('spotify_expires_at')
-        ]);
+        console.error('Token exchange error:', error);
         
         return res.status(500).json({
           success: false,
-          error: error.message || 'Failed to exchange/store tokens'
+          error: error.message || 'Failed to exchange tokens'
         });
       }
     }
 
     if (path === '/api/spotify/current-track' && req.method === 'GET') {
-      let cachedData = await storage.get('current_track_data');
-      
-      if (cachedData) {
-        if (typeof cachedData === 'string') {
-          cachedData = JSON.parse(cachedData);
-        }
-        
-        if (cachedData.lastUpdated && Date.now() - cachedData.lastUpdated > 30000) {
-          console.log('Cache stale, fetching fresh data...');
-          const freshData = await fetchSpotifyData();
-          if (freshData) {
-            return res.status(200).json({
-              success: true,
-              data: freshData
-            });
-          }
-        }
-        
-        console.log('Returning cached track data');
-        return res.status(200).json({
-          success: true,
-          data: cachedData
-        });
-      }
-      
-      console.log('No cached data, fetching fresh...');
       const freshData = await fetchSpotifyData();
       
       return res.status(200).json({
@@ -411,42 +270,29 @@ export default async function handler(req, res) {
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
       try {
-        const [access_token, refresh_token, expires_at, trackData] = await Promise.all([
-          storage.get('spotify_access_token'),
-          storage.get('spotify_refresh_token'),
-          storage.get('spotify_expires_at'),
-          storage.get('current_track_data')
-        ]);
-
-        const tokenExpired = expires_at && Date.now() >= (parseInt(expires_at) - 60000);
+        const hasRefreshToken = !!process.env.SPOTIFY_REFRESH_TOKEN;
         
         console.log('Status check:', {
-          hasAccessToken: !!access_token,
-          hasRefreshToken: !!refresh_token,
-          tokenExpired,
-          hasTrackData: !!trackData,
-          expiresAt: expires_at ? new Date(parseInt(expires_at)).toISOString() : null
+          hasRefreshToken,
+          hasCachedToken: !!tokenCache.access_token,
+          tokenExpired: tokenCache.expires_at ? Date.now() >= (tokenCache.expires_at - 60000) : true
         });
 
         let authenticated = false;
-        if (refresh_token) {
-          if (!access_token || tokenExpired) {
-            try {
-              await refreshAccessToken();
-              authenticated = true;
-            } catch (refreshError) {
-              console.error('Auto-refresh failed during status check:', refreshError);
-              authenticated = false;
-            }
-          } else {
+        if (hasRefreshToken) {
+          try {
+            await getValidAccessToken();
             authenticated = true;
+          } catch (error) {
+            console.error('Auth check failed:', error);
+            authenticated = false;
           }
         }
         
         return res.status(200).json({
-          authenticated: authenticated || !!(access_token && !tokenExpired),
-          hasTrackData: !!trackData,
-          needsRefresh: tokenExpired
+          authenticated: authenticated,
+          hasTrackData: authenticated,
+          needsRefresh: false
         });
       } catch (error) {
         console.error('Status check error:', error);
@@ -468,10 +314,11 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/get-token' && req.method === 'GET') {
-      const refresh_token = await storage.get('spotify_refresh_token');
+      const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
       return res.status(200).json({
-        token: refresh_token,
-        hasToken: !!refresh_token
+        token: refresh_token ? 'Token is set in environment variables' : null,
+        hasToken: !!refresh_token,
+        source: 'environment_variables'
       });
     }
 
@@ -479,7 +326,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        storage: !!storage
+        storage: 'environment_variables'
       });
     }
 
