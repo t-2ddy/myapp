@@ -141,6 +141,7 @@ async function refreshAccessToken() {
     }
 
     const tokenData = await response.json();
+    console.log('REFRESH TOKEN:', tokenData.refresh_token);
     
     // Store tokens atomically
     const storePromises = [
