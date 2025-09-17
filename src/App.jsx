@@ -5,7 +5,7 @@ import Navbar from './components/Navbar'
 import Projects from './components/Projects'
 import MySpotifyPlayer from './components/MySpotifyPlayer'
 import SpotifyAdminSetup from './components/SpotifyAdminSetup'
-import { getBackendAuthStatus, getAuthorizationUrl, exchangeCodeInBackend } from './utils/spotify'
+import { exchangeCodeInBackend } from './utils/spotify'
 
 import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
 
@@ -15,12 +15,11 @@ function App() {
   const [adminSetupKey, setAdminSetupKey] = useState(0)
 
   useEffect(() => {
-    const checkAndAutoAuth = async () => {
+    const handleCallback = async () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const error = urlParams.get('error');
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
         // Handle callback silently in background, no popup
         if (code) {
@@ -36,30 +35,14 @@ function App() {
           return;
         }
 
-        // Skip auto-redirect in local development
-        if (isLocalhost) {
-          console.log('Localhost detected, skipping auto-auth (use Ctrl+Shift+S)');
-          return;
-        }
-
-        // If not authenticated, auto-redirect to Spotify without showing popup
-        try {
-          const backendStatus = await getBackendAuthStatus();
-          console.log('Auth check:', { backendAuth: backendStatus.authenticated, hasTrackData: backendStatus.hasTrackData });
-          if (!backendStatus.authenticated) {
-            const authUrl = getAuthorizationUrl();
-            console.log('Not authenticated, auto-redirecting to Spotify...');
-            window.location.href = authUrl;
-          }
-        } catch (authError) {
-          console.error('Auth check failed:', authError);
-        }
+        // No auto-redirect - let users discover the site naturally
+        // The Spotify player will show appropriate state messages
       } catch (e) {
-        console.error('Error in auto-auth flow:', e);
+        console.error('Error in callback handling:', e);
       }
     };
 
-    checkAndAutoAuth();
+    handleCallback();
   }, []);
 
   const handleSetupComplete = () => {
@@ -184,7 +167,7 @@ function App() {
       <Navbar className='asciiFade-ani'/>
       <div ref={root} className="flex min-h-screen bg-zinc-900 justify-center lowercase pt-10">
         <div className="w-full max-w-md py-6 sm:max-w-xl">
-          <div className="text-center text-[5px] leading-[6px] sm:text-[7.7px] sm:leading-[8px] asciiFade-ani" 
+          <div className="text-center text-[5px] leading-[6px] sm:text-[6.9px] sm:leading-[8px] asciiFade-ani" 
                dangerouslySetInnerHTML={{ __html: asciiArt }} 
                style={{ fontFamily: 'monospace'}}
           />
