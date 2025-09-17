@@ -472,6 +472,15 @@ export default async function handler(req, res) {
       });
     }
 
+    // Debug endpoint to get refresh token
+    if (path === '/api/get-token' && req.method === 'GET') {
+      const refresh_token = await redis.get('spotify_refresh_token');
+      return res.status(200).json({
+        token: refresh_token,
+        hasToken: !!refresh_token
+      });
+    }
+
     if (path === '/api/health' && req.method === 'GET') {
       return res.status(200).json({ 
         status: 'ok', 
