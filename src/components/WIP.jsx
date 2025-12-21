@@ -1,22 +1,24 @@
 import { createDraggable, utils, animate } from "animejs"
 import { useEffect, useRef, useState } from 'react'
 
-import owHeros    from '/images/ow_heros.png'
-import owHome     from '/images/ow_home.png'
-import owWelcome  from '/images/ow_welcome.png'
-import hhAuth1    from '/images/hh_auth1.png'
-import hhAuth2    from '/images/hh_auth2.png'
-import hhAuth3    from '/images/hh_auth3.png'
-import hhHome     from '/images/hh_home.png'
-import hhTowa     from '/images/hh_towa.png'
-import hhMessages from '/images/hh_messages.png'
-import e7app from '/images/e7app.png'
-import e7appDemo from '/video/e7appDemo.mp4'
-import umaa1 from '/images/umaa1.png'
-import umaa2 from '/images/umaa2.png'
-import umaa3 from '/images/umaa3.png'
+const wipProjects = [
+  {
+    title: "twitter leetcode bot",
+    technologies: "n8n, twitter api, javascript",
+    description: "• automating my daily leetcode routine with whiteboarding and notes that are significant for me to remember for later\n• using n8n to schedule the tweets and twitter api to post the tweets \n•looking to pull post content from obsidian vault instead of locally",
+    link: null,
+    images: []
+  },
+  {
+    title: "umaa agents",
+    technologies: "n8n",
+    description: "• looking to make 2 different ai agents for my umaa site\n• one agent to help automate the next champtions meetings guides on the site\n• one agent to help users with deck building\n• need to figure out where im getting the uma support card data from and where to get guide content from",
+    link: null,
+    images: []
+  },
+];
 
-const Projects = () => {
+const WIP = () => {
   const projectScrollRefs = useRef([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
@@ -38,7 +40,7 @@ const Projects = () => {
 
     projectScrollRefs.current.forEach((ref, index) => {
       if (ref) {
-        const project = allProjects[index];
+        const project = wipProjects[index];
         const containerWidth = 400;
         const descriptionWidth = 500;
         const imageWidth = 320;
@@ -160,59 +162,6 @@ const Projects = () => {
     setCurrentImageIndex(index);
   };
 
-const completedProjects = [
-  {
-    title: "Epic Seven Shop Automation Tool",
-    technologies: "Python, Tkinter, OpenCV, PyAutoGUI, Win32 API, Computer Vision",
-    description: "• Desktop automation tool for Epic Seven's in-game shop\n• Uses computer vision with OpenCV for item detection\n• Built custom GUI with Tkinter for user-friendly controls and tracking\n• Features budget controls, emergency stops, and automatic bookmark purchasing",
-    link: "https://github.com/t-2ddy/Epic-Seven-Auto-Shop-Refresher",
-    images: [
-      e7app,
-      e7appDemo,
-    ]
-  },
-  {
-    title: "umaa - uma-assist",
-    technologies: "Next.js 13, TypeScript, Tailwind CSS, React, Vercel",
-    description: "• guide for uma musume pretty derby game\n• features champions meeting and team trial guides with position-specific strategies and skill recommendations\n• game assests aquired through web scraping from uma community sources\n• built with dynamic routing, dark mode support, and responsive design",
-    link: "https://umaa.moe",
-    images: [
-      umaa1,
-      umaa2,
-      umaa3,
-    ]
-  }
-];
-
-const droppedProjects = [
-  {
-    title: "Overwatch Hero Guide Web Application",
-    technologies: "React, Vite, JavaScript, Tailwind CSS, MySQL, AWS",
-    description: "• My first full-stack web app\n• Built with React/Vite and Tailwind for the frontend\n• Pulls data from Overfast API\n• Uses a custom MySQL database hosted on AWS for hero tips\n• learned about technologies that i still use in my tech stack",
-    link: "https://ow-app-ten.vercel.app/",
-    images: [
-      owHome,
-      owHeros,
-      owWelcome,
-    ]
-  },
-  {
-    title: "Tow.ai",
-    technologies: "React Native, Expo, TypeScript, NativeWind, OpenAI API, Appwrite",
-    description: "• My jump into mobile development - a productivity app themed around the character in my ASCII banner\n• Built with React Native/Expo and TypeScript\n• Uses Appwrite for auth and user data\n• Features a custom API for the ai agent to support you thoughout the day",
-    images: [
-      hhAuth1,
-      hhAuth2,
-      hhAuth3,
-      hhHome,
-      hhTowa,
-      hhMessages,
-    ]
-  },
-];
-
-const allProjects = [...completedProjects, ...droppedProjects];
-
   const renderProjects = (projectsList, startIndex) => {
     return projectsList.map((project, relativeIndex) => {
       const index = startIndex + relativeIndex;
@@ -305,26 +254,7 @@ const allProjects = [...completedProjects, ...droppedProjects];
 
   return (
     <div>
-      <div className="flex flex-row  py-6 text-neutral-200 header-ani whitespace-normal">
-        <h2 className='text-4xl'>
-          projects
-          
-        </h2>
-      </div>
-      
-      <div className="mb-8">
-        <h3 className='text-3xl py-4 text-neutral-200 header-ani'>
-          completed
-        </h3>
-        {renderProjects(completedProjects, 0)}
-      </div>
-
-      <div className="mb-8">
-        <h3 className='text-3xl py-4 text-neutral-200 header-ani'>
-          dropped
-        </h3>
-        {renderProjects(droppedProjects, completedProjects.length)}
-      </div>
+      {renderProjects(wipProjects, 0)}
 
     {galleryOpen && currentProject && (
       <div className="fixed inset-0 bg-zinc-900 bg-opacity-90 flex items-center justify-center z-50">
@@ -420,4 +350,5 @@ const allProjects = [...completedProjects, ...droppedProjects];
   )
 }
 
-export default Projects
+export default WIP
+

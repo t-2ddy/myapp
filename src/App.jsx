@@ -3,16 +3,18 @@ import './App.css'
 import { animate, createScope, stagger } from 'animejs'
 import Navbar from './components/Navbar'
 import Projects from './components/Projects'
+import WIP from './components/WIP'
 import MySpotifyPlayer from './components/MySpotifyPlayer'
 import SpotifyAdminSetup from './components/SpotifyAdminSetup'
 import { exchangeCodeInBackend } from './utils/spotify'
 
-import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo } from "react-icons/pi";
+import { PiGithubLogo, PiLinkedinLogo, PiXLogo, PiDiscordLogo, PiCaretDown, PiCaretUp } from "react-icons/pi";
 
 function App() {
   const [asciiArt, setAsciiArt] = useState('')
   const [showAdminSetup, setShowAdminSetup] = useState(false)
   const [adminSetupKey, setAdminSetupKey] = useState(0)
+  const [coursesExpanded, setCoursesExpanded] = useState(false)
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -208,20 +210,45 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
-            <div id="courses" className="pt-4">
+            <div id="WIP" className="pt-4">
               <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
-                relevant courses
+                work in progress
               </h2>
-              {courses.map((course, index) =>(
-                <div key={index} className='info-ani'>
-                  <h3 className='text-2xl py-2 text-purple-300'>
-                    {course.title}
-                  </h3>
-                  <p className='text-xl py-2 text-neutral-200 whitespace-pre-line'>
-                    {course.description}
-                  </p>
-                </div>
-              ))}
+              <WIP/>
+            </div>
+
+            <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+
+            <div id="courses" className="pt-4">
+              <button
+                onClick={() => setCoursesExpanded(!coursesExpanded)}
+                className="flex items-center gap-2 w-full text-left hover:text-violet-400 transition-colors duration-200"
+              >
+                <h2 className='text-4xl py-6 text-neutral-200 header-ani'>
+                  relevant courses
+                </h2>
+                {coursesExpanded ? (
+                  <PiCaretUp className='text-purple-300 hover:text-violet-400 transition-colors duration-200' size={24} />
+                ) : (
+                  <PiCaretDown className='text-purple-300 hover:text-violet-400 transition-colors duration-200' size={24} />
+                )}
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  coursesExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                {courses.map((course, index) =>(
+                  <div key={index} className='info-ani'>
+                    <h3 className='text-2xl py-2 text-purple-300'>
+                      {course.title}
+                    </h3>
+                    <p className='text-xl py-2 text-neutral-200 whitespace-pre-line'>
+                      {course.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
