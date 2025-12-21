@@ -1,5 +1,6 @@
 import { createDraggable, utils, animate } from "animejs"
 import { useEffect, useRef, useState } from 'react'
+import { PiCaretDown, PiCaretUp } from "react-icons/pi";
 
 import owHeros    from '/images/ow_heros.png'
 import owHome     from '/images/ow_home.png'
@@ -25,6 +26,7 @@ const Projects = () => {
 
   const [animatedProjects, setAnimatedProjects] = useState(new Set());
   const projectContainerRefs = useRef([]);
+  const [droppedProjectsExpanded, setDroppedProjectsExpanded] = useState(false);
 
   // Helper function to check if a file is a video
   const isVideo = (src) => {
@@ -320,10 +322,26 @@ const allProjects = [...completedProjects, ...droppedProjects];
       </div>
 
       <div className="mb-8">
-        <h3 className='text-3xl py-4 text-neutral-200 header-ani'>
-          dropped
-        </h3>
-        {renderProjects(droppedProjects, completedProjects.length)}
+        <button
+          onClick={() => setDroppedProjectsExpanded(!droppedProjectsExpanded)}
+          className="flex items-center gap-2 w-full text-left hover:text-violet-400 transition-colors duration-200"
+        >
+          <h3 className='text-3xl py-4 text-neutral-200 header-ani'>
+            dropped
+          </h3>
+          {droppedProjectsExpanded ? (
+            <PiCaretUp className='text-purple-300 hover:text-violet-400 transition-colors duration-200' size={24} />
+          ) : (
+            <PiCaretDown className='text-purple-300 hover:text-violet-400 transition-colors duration-200' size={24} />
+          )}
+        </button>
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            droppedProjectsExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+          }`}
+        >
+          {renderProjects(droppedProjects, completedProjects.length)}
+        </div>
       </div>
 
     {galleryOpen && currentProject && (
