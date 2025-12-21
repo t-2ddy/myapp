@@ -1,4 +1,4 @@
-import { createDraggable, utils, animate } from "animejs"
+import { createDraggable, utils } from "animejs"
 import { useEffect, useRef, useState } from 'react'
 
 const wipProjects = [
@@ -25,8 +25,6 @@ const WIP = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentImage, setImagesClickable] = useState(null);
 
-  const [animatedProjects, setAnimatedProjects] = useState(new Set());
-  const projectContainerRefs = useRef([]);
 
   // Helper function to check if a file is a video
   const isVideo = (src) => {
@@ -74,59 +72,10 @@ const WIP = () => {
       }
     });
 
-    // Set up Intersection Observer for scroll-based animation
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const index = parseInt(entry.target.dataset.projectIndex);
-          // Only trigger animation if this project hasn't been animated yet
-          if (!animatedProjects.has(index)) {
-            triggerBumpAnimation(index);
-            // Stop observing this element after animation is triggered
-            observer.unobserve(entry.target);
-          }
-        }
-      });
-    }, {
-      // Trigger when the bottom of the container reaches the middle of the screen
-      rootMargin: '0px 0px -50% 0px',
-      threshold: 0
-    });
-
-    // Observe each project container
-    projectContainerRefs.current.forEach((ref, index) => {
-      if (ref) {
-        ref.dataset.projectIndex = index;
-        observer.observe(ref);
-      }
-    });
-
     return () => {
       clearTimeout(timer);
-      observer.disconnect();
     };
   }, []);
-
-  const triggerBumpAnimation = (index) => {
-    const projectElement = projectScrollRefs.current[index];
-    if (projectElement) {
-      const currentTransform = projectElement.style.transform || '';
-      const currentX = currentTransform.match(/translateX\(([^)]+)\)/);
-      const xValue = currentX ? parseFloat(currentX[1]) : 0;
-      
-      if (Math.abs(xValue) < 5) {
-        animate(projectElement, {
-          x: [0, -150, 0],
-          ease: 'inOutQuad',
-          delay: 100,
-          duration: 900,
-        });
-        
-        // Mark this project as animated so it won't animate again
-        setAnimatedProjects(prev => new Set(prev).add(index));
-      }
-    }
-  };
 
   const openGallery = (project, imageIndex) => {
     setCurrentProject(project);
@@ -169,7 +118,6 @@ const WIP = () => {
         <div 
           key={index} 
           className='info-ani'
-          ref={(el) => projectContainerRefs.current[index] = el}
         >
           <h3 className='text-2xl py-3 text-purple-300'>
             {project.link ? (
