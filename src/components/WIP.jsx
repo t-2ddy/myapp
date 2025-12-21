@@ -1,11 +1,11 @@
-import { createDraggable, utils } from "animejs"
+import { createDraggable, utils, animate } from "animejs"
 import { useEffect, useRef, useState } from 'react'
 
 const wipProjects = [
   {
     title: "twitter leetcode bot",
     technologies: "n8n, twitter api, javascript",
-    description: "• automating my daily leetcode routine with whiteboarding and notes that are significant for me to remember for later\n• using n8n to schedule the tweets and twitter api to post the tweets \n•looking to pull post content from obsidian vault instead of locally",
+    description: "• automating my daily leetcode routine with whiteboarding and notes that are significant for me to remember for later\n• using n8n to schedule the tweets and twitter api to post the tweets \n• looking to pull post content from obsidian vault instead of locally",
     link: null,
     images: []
   },
@@ -24,6 +24,7 @@ const WIP = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentImage, setImagesClickable] = useState(null);
+  const [currentItemIndex, setCurrentItemIndex] = useState({});
 
 
   // Helper function to check if a file is a video
@@ -111,6 +112,63 @@ const WIP = () => {
     setCurrentImageIndex(index);
   };
 
+  const scrollToItem = (projectIndex, itemIndex) => {
+    const scrollRef = projectScrollRefs.current[projectIndex];
+    if (!scrollRef) return;
+
+    const project = wipProjects[projectIndex];
+    const containerWidth = 400;
+    const descriptionWidth = 500;
+    const imageWidth = 320;
+    const spacing = 24;
+    const imageCount = project.images ? project.images.length : 0;
+    
+    if (imageCount === 0) return;
+
+    // Calculate position for each item
+    // Item 0 is description (at 0), items 1+ are images
+    let targetX = 0;
+    if (itemIndex === 0) {
+      targetX = 0;
+    } else {
+      // Position of image: description width + (previous images * (imageWidth + spacing))
+      targetX = -(descriptionWidth + ((itemIndex - 1) * (imageWidth + spacing)));
+    }
+
+    const totalContentWidth = descriptionWidth + (imageCount * (imageWidth + spacing));
+    const maxScroll = Math.max(0, totalContentWidth - containerWidth);
+    const minScroll = -maxScroll;
+    
+    // Clamp the target position
+    targetX = Math.max(minScroll, Math.min(0, targetX));
+
+    animate(scrollRef, {
+      x: targetX,
+      duration: 500,
+      easing: 'easeInQuad'
+    });
+
+    setCurrentItemIndex(prev => ({ ...prev, [projectIndex]: itemIndex }));
+  };
+
+  const scrollNext = (projectIndex) => {
+    const project = wipProjects[projectIndex];
+    const imageCount = project.images ? project.images.length : 0;
+    const totalItems = 1 + imageCount; // description + images
+    const currentIndex = currentItemIndex[projectIndex] || 0;
+    const nextIndex = (currentIndex + 1) % totalItems;
+    scrollToItem(projectIndex, nextIndex);
+  };
+
+  const scrollPrev = (projectIndex) => {
+    const project = wipProjects[projectIndex];
+    const imageCount = project.images ? project.images.length : 0;
+    const totalItems = 1 + imageCount; // description + images
+    const currentIndex = currentItemIndex[projectIndex] || 0;
+    const prevIndex = currentIndex === 0 ? totalItems - 1 : currentIndex - 1;
+    scrollToItem(projectIndex, prevIndex);
+  };
+
   const renderProjects = (projectsList, startIndex) => {
     return projectsList.map((project, relativeIndex) => {
       const index = startIndex + relativeIndex;
@@ -119,20 +177,44 @@ const WIP = () => {
           key={index} 
           className='info-ani'
         >
-          <h3 className='text-2xl py-3 text-purple-300'>
-            {project.link ? (
-              <a
-                href={project.link}
-                className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {project.title}
-              </a>
-            ) : (
-              <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block py-4'>
-                {project.title}
-              </span>
+          <h3 className='text-2xl py-3 text-purple-300 flex items-center justify-between'>
+            <span>
+              {project.link ? (
+                <a
+                  href={project.link}
+                  className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {project.title}
+                </a>
+              ) : (
+                <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block py-4'>
+                  {project.title}
+                </span>
+              )}
+            </span>
+            {project.images && project.images.length > 0 && (
+              <div className="flex gap-1 ml-4">
+                <button
+                  onClick={() => scrollPrev(index)}
+                  className="text-purple-300 hover:text-purple-400 transition-all duration-200 hover:scale-110 opacity-70 hover:opacity-100"
+                  aria-label="Previous item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => scrollNext(index)}
+                  className="text-purple-300 hover:text-purple-400 transition-all duration-200 hover:scale-110 opacity-70 hover:opacity-100"
+                  aria-label="Next item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             )}
           </h3>
           <h4 className='text-lg text-neutral-600'>

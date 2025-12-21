@@ -27,6 +27,7 @@ const Projects = () => {
   const [animatedProjects, setAnimatedProjects] = useState(new Set());
   const projectContainerRefs = useRef([]);
   const [droppedProjectsExpanded, setDroppedProjectsExpanded] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState({});
 
   // Helper function to check if a file is a video
   const isVideo = (src) => {
@@ -162,6 +163,63 @@ const Projects = () => {
     setCurrentImageIndex(index);
   };
 
+  const scrollToItem = (projectIndex, itemIndex) => {
+    const scrollRef = projectScrollRefs.current[projectIndex];
+    if (!scrollRef) return;
+
+    const project = allProjects[projectIndex];
+    const containerWidth = 400;
+    const descriptionWidth = 500;
+    const imageWidth = 320;
+    const spacing = 24;
+    const imageCount = project.images ? project.images.length : 0;
+    
+    if (imageCount === 0) return;
+
+    // Calculate position for each item
+    // Item 0 is description (at 0), items 1+ are images
+    let targetX = 0;
+    if (itemIndex === 0) {
+      targetX = 0;
+    } else {
+      // Position of image: description width + (previous images * (imageWidth + spacing))
+      targetX = -(descriptionWidth + ((itemIndex - 1) * (imageWidth + spacing)));
+    }
+
+    const totalContentWidth = descriptionWidth + (imageCount * (imageWidth + spacing));
+    const maxScroll = Math.max(0, totalContentWidth - containerWidth);
+    const minScroll = -maxScroll;
+    
+    // Clamp the target position
+    targetX = Math.max(minScroll, Math.min(0, targetX));
+
+    animate(scrollRef, {
+      x: targetX,
+      duration: 500,
+      easing: 'easeInQuad'
+    });
+
+    setCurrentItemIndex(prev => ({ ...prev, [projectIndex]: itemIndex }));
+  };
+
+  const scrollNext = (projectIndex) => {
+    const project = allProjects[projectIndex];
+    const imageCount = project.images ? project.images.length : 0;
+    const totalItems = 1 + imageCount; // description + images
+    const currentIndex = currentItemIndex[projectIndex] || 0;
+    const nextIndex = (currentIndex + 1) % totalItems;
+    scrollToItem(projectIndex, nextIndex);
+  };
+
+  const scrollPrev = (projectIndex) => {
+    const project = allProjects[projectIndex];
+    const imageCount = project.images ? project.images.length : 0;
+    const totalItems = 1 + imageCount; // description + images
+    const currentIndex = currentItemIndex[projectIndex] || 0;
+    const prevIndex = currentIndex === 0 ? totalItems - 1 : currentIndex - 1;
+    scrollToItem(projectIndex, prevIndex);
+  };
+
 const completedProjects = [
   {
     title: "Epic Seven Shop Automation Tool",
@@ -224,20 +282,44 @@ const allProjects = [...completedProjects, ...droppedProjects];
           className='info-ani'
           ref={(el) => projectContainerRefs.current[index] = el}
         >
-          <h3 className='text-2xl py-3 text-purple-300'>
-            {project.link ? (
-              <a
-                href={project.link}
-                className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {project.title}
-              </a>
-            ) : (
-              <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block py-4'>
-                {project.title}
-              </span>
+          <h3 className='text-2xl py-3 text-purple-300 flex items-center justify-between'>
+            <span>
+              {project.link ? (
+                <a
+                  href={project.link}
+                  className='hover:text-violet-500 hover:cursor-pointer hover:scale-105 transition-all duration-200 inline-block'
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {project.title}
+                </a>
+              ) : (
+                <span className='hover:text-violet-500 hover:cursor-not-allowed hover:scale-105 transition-all duration-200 inline-block py-4'>
+                  {project.title}
+                </span>
+              )}
+            </span>
+            {project.images && project.images.length > 0 && (
+              <div className="flex gap-1 ml-4">
+                <button
+                  onClick={() => scrollPrev(index)}
+                  className="text-purple-300 hover:text-purple-400 transition-all duration-200 hover:scale-110 opacity-70 hover:opacity-100"
+                  aria-label="Previous item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => scrollNext(index)}
+                  className="text-purple-300 hover:text-purple-400 transition-all duration-200 hover:scale-110 opacity-70 hover:opacity-100"
+                  aria-label="Next item"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
             )}
           </h3>
           <h4 className='text-lg text-neutral-600'>
