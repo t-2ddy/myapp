@@ -41,8 +41,8 @@ const WIP = () => {
     projectScrollRefs.current.forEach((ref, index) => {
       if (ref) {
         const project = wipProjects[index];
-        const containerWidth = 400;
-        const descriptionWidth = 500;
+        const containerWidth = ref.parentElement.offsetWidth;
+        const descriptionWidth = ref.children[0]?.offsetWidth ?? 500;
         const imageWidth = 320;
         const spacing = 24;
         const imageCount = project.images ? project.images.length : 0;
@@ -106,8 +106,8 @@ const WIP = () => {
     if (!scrollRef) return;
 
     const project = wipProjects[projectIndex];
-    const containerWidth = 400;
-    const descriptionWidth = 500;
+    const containerWidth = scrollRef.parentElement.offsetWidth;
+    const descriptionWidth = scrollRef.children[0]?.offsetWidth ?? 500;
     const imageWidth = 320;
     const spacing = 24;
     const imageCount = project.images ? project.images.length : 0;
