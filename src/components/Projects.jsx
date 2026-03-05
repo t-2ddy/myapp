@@ -19,6 +19,7 @@ import umaa3 from '/images/umaa3.png'
 
 const Projects = () => {
   const projectScrollRefs = useRef([]);
+  const draggableRefs = useRef([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -55,21 +56,9 @@ const Projects = () => {
           const maxScroll = Math.max(0, totalContentWidth - containerWidth);
           const minScroll = -maxScroll;
           
-          createDraggable(ref, {
+          draggableRefs.current[index] = createDraggable(ref, {
             y: false,
             modifier: utils.clamp(minScroll, 0),
-            onRelease: (draggable) => {
-              setTimeout(() => {
-                // Only recreate if not currently being grabbed
-                if (!draggable.grabbed && !draggable.dragged) {
-                  draggable.kill();
-                  createDraggable(ref, {
-                    y: false,
-                    modifier: utils.clamp(minScroll, 0),
-                  });
-                }
-              }, 30);
-            }
           });
         }
       }
@@ -196,7 +185,12 @@ const Projects = () => {
     animate(scrollRef, {
       x: targetX,
       duration: 500,
-      easing: 'easeInQuad'
+      easing: 'easeInQuad',
+      onComplete: () => {
+        if (draggableRefs.current[projectIndex]) {
+          draggableRefs.current[projectIndex].x = targetX;
+        }
+      }
     });
 
     setCurrentItemIndex(prev => ({ ...prev, [projectIndex]: itemIndex }));
@@ -336,7 +330,6 @@ const allProjects = [...completedProjects, ...droppedProjects];
                 width: project.images && project.images.length > 0 
                   ? `${400 + (project.images.length * 320 + project.images.length * 24)}px`
                   : '100%',
-                transform: `translateX(0px)`
               }}
             >
               <div className="flex-shrink-0 w-[345px] sm:w-[520px] py-6">
