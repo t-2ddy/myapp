@@ -1,14 +1,84 @@
-const CLIENT_ID = 'a1051807e7b34d7caf792edfea182fd5';
-const CLIENT_SECRET = '0417ca91a9e64d22bd0ad5159d921eb3';
+import { Redis } from '@upstash/redis';
+
+const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+
+if (!CLIENT_ID || !CLIENT_SECRET) {
+  console.error('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables');
+}
+
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const CURRENTLY_PLAYING_URL = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_URL = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
+const REFRESH_TOKEN_KEY = 'spotify_refresh_token';
 
 // In-memory cache for access tokens (will reset on function restart)
 let tokenCache = {
   access_token: null,
   expires_at: null
 };
+
+// Lazily create the Redis client only if the project has a store connected.
+// Falls back to null so the app still runs on SPOTIFY_REFRESH_TOKEN alone.
+let redis = null;
+try {
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    redis = Redis.fromEnv();
+  } else {
+    console.log('Upstash Redis env vars not found - falling back to SPOTIFY_REFRESH_TOKEN only');
+  }
+} catch (error) {
+  console.error('Failed to initialize Redis client:', error);
+  redis = null;
+}
+
+// Tracks whether the last successful read came from Redis or the env var,
+// so /api/get-token and /api/health can report it without guesswork.
+let lastRefreshTokenSource = 'none';
+
+// Read the refresh token, preferring Redis (auto-persisted on each OAuth
+// exchange) and falling back to the SPOTIFY_REFRESH_TOKEN env var so a
+// bootstrap token keeps working until the next re-auth.
+async function getStoredRefreshToken() {
+  if (redis) {
+    try {
+      const stored = await redis.get(REFRESH_TOKEN_KEY);
+      if (stored) {
+        lastRefreshTokenSource = 'redis';
+        return stored;
+      }
+    } catch (error) {
+      console.error('Failed to read refresh token from Redis:', error);
+    }
+  }
+
+  const envToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  if (envToken) {
+    lastRefreshTokenSource = 'env-fallback';
+    return envToken;
+  }
+
+  lastRefreshTokenSource = 'none';
+  return null;
+}
+
+// Persist a newly issued refresh token to Redis so future requests never
+// need it pasted into Vercel env vars by hand.
+async function setStoredRefreshToken(token) {
+  if (!redis) {
+    console.log('No Redis client configured - refresh token was NOT persisted. It will only live in this log line and the in-memory cache:', token);
+    return false;
+  }
+
+  try {
+    await redis.set(REFRESH_TOKEN_KEY, token);
+    console.log('Refresh token persisted to Redis');
+    return true;
+  } catch (error) {
+    console.error('Failed to persist refresh token to Redis:', error);
+    return false;
+  }
+}
 
 async function exchangeCodeForToken(code) {
   console.log('Exchanging code for token...');
@@ -40,14 +110,14 @@ async function exchangeCodeForToken(code) {
 }
 
 async function refreshAccessToken() {
-  const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+  const refresh_token = await getStoredRefreshToken();
   
   if (!refresh_token) {
-    console.log('No refresh token available in environment variables');
-    throw new Error('No refresh token available - Please set SPOTIFY_REFRESH_TOKEN environment variable');
+    console.log('No refresh token available in Redis or environment variables');
+    throw new Error('No refresh token available - connect Spotify or set SPOTIFY_REFRESH_TOKEN environment variable');
   }
   
-  console.log('Refreshing access token using environment variable...');
+  console.log(`Refreshing access token using ${lastRefreshTokenSource} token...`);
   
   try {
     const response = await fetch(TOKEN_URL, {
@@ -91,19 +161,20 @@ async function refreshAccessToken() {
 
 async function getValidAccessToken() {
   try {
-    const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+    const refresh_token = await getStoredRefreshToken();
     
     console.log('Token check:', {
       hasCachedToken: !!tokenCache.access_token,
       hasRefreshToken: !!refresh_token,
+      refreshTokenSource: lastRefreshTokenSource,
       expiresAt: tokenCache.expires_at,
       now: Date.now(),
       expired: tokenCache.expires_at ? Date.now() >= (tokenCache.expires_at - 60000) : true
     });
     
     if (!refresh_token) {
-      console.log('No refresh token available in environment variables');
-      throw new Error('Authentication required - SPOTIFY_REFRESH_TOKEN not set');
+      console.log('No refresh token available in Redis or environment variables');
+      throw new Error('Authentication required - connect Spotify or set SPOTIFY_REFRESH_TOKEN');
     }
     
     // Check if we have a valid cached token
@@ -231,12 +302,9 @@ export default async function handler(req, res) {
           throw new Error('Invalid token data received from Spotify');
         }
         
-        // Display the refresh token for manual addition to environment variables
-        console.log('='.repeat(50));
-        console.log('IMPORTANT: Add this to your Vercel environment variables:');
-        console.log('Key: SPOTIFY_REFRESH_TOKEN');
-        console.log('Value:', tokenData.refresh_token);
-        console.log('='.repeat(50));
+        // Persist the new refresh token so future requests never need it
+        // pasted into Vercel env vars by hand.
+        const persisted = await setStoredRefreshToken(tokenData.refresh_token);
         
         // Cache the access token
         tokenCache.access_token = tokenData.access_token;
@@ -247,7 +315,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ 
           success: true,
           trackData: trackData,
-          message: 'Please add the refresh token from the server logs to your Vercel environment variables'
+          persisted,
+          message: persisted
+            ? 'Refresh token saved automatically - no further action needed'
+            : 'Redis is not configured, so the refresh token could not be persisted. Check server logs and set SPOTIFY_REFRESH_TOKEN manually as a fallback.'
         });
       } catch (error) {
         console.error('Token exchange error:', error);
@@ -270,10 +341,12 @@ export default async function handler(req, res) {
 
     if (path === '/api/spotify/status' && req.method === 'GET') {
       try {
-        const hasRefreshToken = !!process.env.SPOTIFY_REFRESH_TOKEN;
+        const refresh_token = await getStoredRefreshToken();
+        const hasRefreshToken = !!refresh_token;
         
         console.log('Status check:', {
           hasRefreshToken,
+          refreshTokenSource: lastRefreshTokenSource,
           hasCachedToken: !!tokenCache.access_token,
           tokenExpired: tokenCache.expires_at ? Date.now() >= (tokenCache.expires_at - 60000) : true
         });
@@ -292,7 +365,8 @@ export default async function handler(req, res) {
         return res.status(200).json({
           authenticated: authenticated,
           hasTrackData: authenticated,
-          needsRefresh: false
+          needsRefresh: false,
+          tokenSource: lastRefreshTokenSource
         });
       } catch (error) {
         console.error('Status check error:', error);
@@ -314,11 +388,11 @@ export default async function handler(req, res) {
     }
 
     if (path === '/api/get-token' && req.method === 'GET') {
-      const refresh_token = process.env.SPOTIFY_REFRESH_TOKEN;
+      const refresh_token = await getStoredRefreshToken();
       return res.status(200).json({
-        token: refresh_token ? 'Token is set in environment variables' : null,
+        token: refresh_token ? `Token is set (source: ${lastRefreshTokenSource})` : null,
         hasToken: !!refresh_token,
-        source: 'environment_variables'
+        source: lastRefreshTokenSource
       });
     }
 
@@ -326,7 +400,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         status: 'ok', 
         timestamp: new Date().toISOString(),
-        storage: 'environment_variables'
+        storage: redis ? 'redis' : 'environment_variables_only'
       });
     }
 
