@@ -3,16 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 
 const wipProjects = [
   {
-    title: "twitter leetcode bot",
-    technologies: "n8n, twitter api, javascript",
-    description: "• automating my daily leetcode routine with whiteboarding and notes that are significant for me to remember for later\n• using n8n to schedule the tweets and twitter api to post the tweets \n• looking to pull post content from obsidian vault instead of locally",
+    title: "Soul Shiori",
+    technologies: "Python, React.js, ElevenLabs, Supabase, OpenAI API",
+    description: "• Launched a full-stack AI companion app with real-time voice-to-voice interaction, built on a modular service pipeline supporting local execution.\n• Migrated the RAG memory backend to Supabase, combining key-fact storage, conversation summarization, and vector search for long-term and session recall.\n• Maintained persistent WebSocket connections across all AI services for stable real-time communication.",
     link: null,
     images: []
   },
   {
-    title: "umaa agents",
-    technologies: "n8n",
-    description: "• looking to make 2 different ai agents for my umaa site\n• one agent to help automate the next champtions meetings guides on the site\n• one agent to help users with deck building\n• need to figure out where im getting the uma support card data from and where to get guide content from",
+    title: "warframe trading agent",
+    technologies: "tbd",
+    description: "• i like trading in warframe so why not XD\n• would help with responding to trade offers and sending trade offers\n• maybe haggle with people, will definetly need behavioral testing",
     link: null,
     images: []
   },
