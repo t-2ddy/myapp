@@ -217,10 +217,10 @@ function App() {
               <WIP/>
             </div>
 
-            <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
+            {/* <div className='flex h-0.5 w-full bg-violet-950 mt-8'/> */}
 
             <div id="courses" className="pt-4">
-              <button
+              {/* <button
                 onClick={() => setCoursesExpanded(!coursesExpanded)}
                 className="flex items-center gap-2 w-full text-left hover:text-violet-400 transition-colors duration-200"
               >
@@ -232,7 +232,7 @@ function App() {
                 ) : (
                   <PiCaretDown className='text-purple-300 hover:text-violet-400 transition-colors duration-200' size={24} />
                 )}
-              </button>
+              </button> */}
               <div
                 className={`overflow-hidden transition-all duration-300 ease-in-out ${
                   coursesExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
