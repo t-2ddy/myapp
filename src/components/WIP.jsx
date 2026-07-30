@@ -11,8 +11,8 @@ const wipProjects = [
   },
   {
     title: "warframe trading agent",
-    technologies: "tbd",
-    description: "• i like trading in warframe so why not XD\n• would help with responding to trade offers and sending trade offers\n• maybe haggle with people, will definetly need behavioral testing",
+    technologies: "planning -- tbd",
+    description: "• i like trading in warframe so why not\n• would help with responding to trade offers and sending trade offers\n• maybe haggle with people, will definetly need behavioral testing",
     link: null,
     images: []
   },
