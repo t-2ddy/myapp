@@ -253,6 +253,20 @@ function App() {
 
             <div className='flex h-0.5 w-full bg-violet-950 mt-8'/>
 
+            <div className="pt-8 pb-4 text-center text-neutral-400 info-ani">
+              <p className="text-md">
+                heres the inspo,{' '}
+                <a
+                  href="https://daikn-personal.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-300 underline hover:text-violet-400 transition-colors duration-200"
+                >
+                  thx nic!
+                </a>
+              </p>
+            </div>
+
           </div>
         </div>
       </div>
