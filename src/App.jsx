@@ -76,7 +76,7 @@ function App() {
       name: 'X'
     },
     {
-      href: 'https://www.linkedin.com/in/t2ddy',
+      href: 'https://www.linkedin.com/in/theoleonard777/',
       Icon: PiLinkedinLogo,
       name: 'LinkedIn'
     },
